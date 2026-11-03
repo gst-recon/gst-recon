@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://gst-recon.github.io/gst-recon/sitemap.xml

@@ -1,0 +1,418 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<meta name="robots" content="noindex, nofollow" />
+<title>GST Recon — Admin Panel</title>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+<style>
+  :root{ --bg:#101613; --surface:#182019; --surface-2:#1f2a22; --ink:#e7efe9; --ink-soft:#a7b8ad; --line:#2e3d33; --accent:#3cb98a; --accent-ink:#0c1712; --bad:#f28b82; --warn:#e8b34b; }
+  *{ box-sizing:border-box; }
+  body{ margin:0; background:var(--bg); color:var(--ink); font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif; font-size:15px; line-height:1.55; }
+  .wrap{ max-width:1020px; margin:0 auto; padding:1.2rem; }
+  header.top{ display:flex; align-items:center; justify-content:space-between; gap:1rem; padding:.8rem 0; border-bottom:1px solid var(--line); margin-bottom:1.2rem; }
+  header.top h1{ margin:0; font-size:1.3rem; }
+  header.top h1 span{ color:var(--accent); }
+  .btn{ display:inline-block; background:var(--surface-2); color:var(--ink); border:1px solid var(--line); border-radius:8px; padding:.55rem 1rem; font-weight:700; cursor:pointer; text-decoration:none; font-size:.92rem; }
+  .btn:hover{ border-color:var(--accent); color:var(--accent); }
+  .btn.primary{ background:var(--accent); color:var(--accent-ink); border-color:var(--accent); }
+  .btn.primary:hover{ filter:brightness(1.08); color:var(--accent-ink); }
+  .hidden{ display:none !important; }
+  .center{ text-align:center; padding:4rem 1rem; }
+  .card{ background:var(--surface); border:1px solid var(--line); border-radius:12px; padding:1.2rem; margin-bottom:1.2rem; }
+  .card h2{ margin:.1rem 0 .8rem; font-size:1.1rem; }
+  .tabs{ display:flex; gap:.5rem; flex-wrap:wrap; margin-bottom:1.2rem; }
+  .tab{ background:var(--surface); border:1px solid var(--line); color:var(--ink-soft); border-radius:99px; padding:.5rem 1rem; font-weight:700; cursor:pointer; }
+  .tab.active{ background:var(--accent); color:var(--accent-ink); border-color:var(--accent); }
+  .field{ margin-bottom:.9rem; }
+  .field label{ display:block; font-weight:700; margin-bottom:.3rem; font-size:.9rem; color:var(--ink-soft); }
+  .field input, .field textarea{ width:100%; background:var(--surface-2); border:1px solid var(--line); color:var(--ink); border-radius:8px; padding:.6rem .7rem; font-size:.95rem; font-family:inherit; }
+  .field textarea{ min-height:90px; resize:vertical; }
+  .field input[readonly]{ opacity:.75; }
+  .msg{ border-radius:8px; padding:.6rem .8rem; margin:.6rem 0; display:none; }
+  .msg.show{ display:block; }
+  .msg.ok{ background:#173528; color:#7fe0b2; border:1px solid #2a5c44; }
+  .msg.err{ background:#3d1d1a; color:#f2a49d; border:1px solid #6b2d28; }
+  .msg.warn{ background:#3a2c10; color:#e8c46a; border:1px solid #6b541f; }
+  table.leads{ width:100%; border-collapse:collapse; font-size:.88rem; }
+  table.leads th, table.leads td{ text-align:left; padding:.5rem .6rem; border-bottom:1px solid var(--line); vertical-align:top; }
+  table.leads th{ color:var(--ink-soft); font-size:.8rem; text-transform:uppercase; letter-spacing:.04em; }
+  .tblwrap{ overflow-x:auto; }
+  .draft{ background:var(--surface-2); border:1px solid var(--line); border-radius:10px; padding:1rem; margin-bottom:1rem; }
+  .draft h3{ margin:.1rem 0 .5rem; font-size:1rem; }
+  .draft pre{ white-space:pre-wrap; font-family:inherit; font-size:.9rem; margin:0 0 .7rem; color:var(--ink); }
+  .setup-steps{ font-size:.92rem; }
+  .setup-steps code{ background:var(--surface-2); padding:.1rem .35rem; border-radius:5px; font-size:.85rem; }
+  .setup-steps pre{ background:#0a0e0b; border:1px solid var(--line); border-radius:8px; padding:.8rem; overflow-x:auto; font-size:.82rem; }
+  .row{ display:flex; gap:.7rem; flex-wrap:wrap; align-items:center; }
+  .muted{ color:var(--ink-soft); font-size:.88rem; }
+  #denied{ color:var(--bad); }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header class="top">
+    <h1>🔧 GST Recon <span>Admin</span></h1>
+    <div class="row">
+      <span id="adminWho" class="muted"></span>
+      <button class="btn hidden" id="signOutBtn" type="button">Sign out</button>
+    </div>
+  </header>
+
+  <!-- gate -->
+  <div id="gate" class="center">
+    <div class="card" style="max-width:420px;margin:0 auto;">
+      <h2>Admin sign-in</h2>
+      <p class="muted">Sirf site owner ka Google account yahan khul sakta hai.</p>
+      <button class="btn primary" id="googleBtn" type="button">Continue with Google</button>
+      <div class="msg err" id="gateErr"></div>
+    </div>
+  </div>
+  <div id="denied" class="center hidden">
+    <h2>⛔ Access denied</h2>
+    <p>Ye admin panel sirf <strong>prathameshrampure78@gmail.com</strong> ke liye hai.<br/>Tum <span id="deniedWho"></span> se signed in ho.</p>
+    <button class="btn" id="deniedOut" type="button">Sign out</button>
+  </div>
+
+  <!-- panel -->
+  <div id="panel" class="hidden">
+    <div class="tabs" id="tabs">
+      <button class="tab active" data-tab="analytics" type="button">📊 Analytics</button>
+      <button class="tab" data-tab="users" type="button">👥 Users</button>
+      <button class="tab" data-tab="leads" type="button">📋 Leads</button>
+      <button class="tab" data-tab="outreach" type="button">✉️ Outreach</button>
+      <button class="tab" data-tab="site" type="button">⚙️ Site Control</button>
+    </div>
+
+    <section class="card" data-pane="analytics">
+      <h2>📊 Website Analytics</h2>
+      <div class="field">
+        <label>GA4 Measurement ID</label>
+        <input id="gaIdField" type="text" readonly value="" placeholder="Abhi set nahi hua — GA4 setup ke baad yahan aayega" />
+      </div>
+      <p class="muted">Visitor graph Google ke andar hi dikhta hai (embed allowed nahi) — neeche button se GA4 dashboard kholo:</p>
+      <a class="btn primary" href="https://analytics.google.com" target="_blank" rel="noopener">GA4 Dashboard kholo ↗</a>
+      <p class="muted" style="margin-top:.8rem;">Realtime me dekhne ke liye: GA4 → Reports → Realtime.</p>
+    </section>
+
+    <section class="card hidden" data-pane="users">
+      <h2>👥 Signed-up Users</h2>
+      <p class="muted">Kaun-kab sign-in kiya — Firebase console me dikhta hai (name, email, sign-in date):</p>
+      <a class="btn primary" id="fbUsersLink" href="#" target="_blank" rel="noopener">Firebase → Authentication → Users ↗</a>
+    </section>
+
+    <section class="card hidden" data-pane="leads">
+      <h2>📋 Leads <span class="muted" id="leadCount"></span></h2>
+      <div class="field">
+        <input id="leadSearch" type="text" placeholder="Search — naam, type, sheher…" />
+      </div>
+      <div class="tblwrap"><table class="leads">
+        <thead><tr><th>Name</th><th>Type</th><th>City</th><th>Contact (public)</th><th>Why</th></tr></thead>
+        <tbody id="leadBody"><tr><td colspan="5" class="muted">Loading…</td></tr></tbody>
+      </table></div>
+    </section>
+
+    <section class="card hidden" data-pane="outreach">
+      <h2>✉️ Outreach Mail Drafts</h2>
+      <p class="muted">Ye drafts hain — Gmail me draft banao, padho, phir khud bhejo. Auto-send nahi.</p>
+      <div class="draft">
+        <h3>Draft 1 — Hinglish (traders / small business)</h3>
+        <pre><strong>Subject:</strong> GST ka 2B matching free me — 2 minute me ITC miss pakdo
+
+Namaste [Name] ji,
+
+Main Prathamesh — accountant hun, aur maine ek free tool banaya hai: <strong>GST Recon</strong>.
+
+Aapka kaam ka hissa:
+- <strong>Purchase Register vs GSTR-2B matching</strong> — kaunsa ITC miss ho raha hai, turant pata
+- <strong>GSTIN validator</strong> — kisi bhi GSTIN ka state, PAN, holder type 2 second me (free sign-in ke baad)
+- <strong>Vendor Master</strong> — apne vendors ki apni database, bina kisi API/key ke
+- <strong>GSTR-3B summary</strong> — auto-computed
+
+100% free hai — bas ek free account banao (Google se, 10 second), aur aapka data aapke browser me hi rehta hai.
+
+Try karo: https://gst-recon.github.io/gst-recon/
+
+Koi sawal ho to reply kar dena.
+
+Dhanyavaad,
+Prathamesh Rampure</pre>
+        <button class="btn" type="button" data-copy="d1">Copy karo</button>
+      </div>
+      <div class="draft">
+        <h3>Draft 2 — English (CA / accounting firms)</h3>
+        <pre><strong>Subject:</strong> Free GST 2B reconciliation tool for your clients
+
+Hello [Name],
+
+I'm Prathamesh, an accountant from Pune. I built <strong>GST Recon</strong> — a free GST reconciliation tool:
+
+- Purchase Register vs GSTR-2B matching (8 match categories, Excel report)
+- GSTR-1 vs e-invoice comparison, vendor/customer reconciliation
+- GSTIN/PAN validator with inline decoding
+- GSTR-3B summary, TDS guide, finance tracker
+
+No API key, data stays in the browser. Free account needed (Google sign-in, 10 seconds). Useful for quick client-side checks before filing.
+
+Link: https://gst-recon.github.io/gst-recon/
+
+Happy to hear your feedback.
+
+Regards,
+Prathamesh Rampure</pre>
+        <button class="btn" type="button" data-copy="d2">Copy karo</button>
+      </div>
+      <div class="draft">
+        <h3>Draft 3 — WhatsApp follow-up (short)</h3>
+        <pre>Namaste [Name] ji, main Prathamesh (accountant, Pune). GST ke liye ek free tool banaya hai — 2B matching, GSTIN check, vendor master, sab free (bas Google se free sign-in): https://gst-recon.github.io/gst-recon/ — 2 minute try karke batayega kaisa laga? 🙏</pre>
+        <button class="btn" type="button" data-copy="d3">Copy karo</button>
+      </div>
+      <div class="msg warn show" style="display:block;">Bhejne se pehle: sirf unko bhejo jinko GST kaam se matlab hai (spam nahi). Pehle 5–10 logo ko bhejo, reply dekho, phir aage badho. Har mail me [Name] personalise karo.</div>
+    </section>
+
+    <section class="card hidden" data-pane="site">
+      <h2>⚙️ Site Control <span class="muted">— badlo, site par turant live</span></h2>
+      <div id="fsWarn" class="msg warn"></div>
+      <div id="siteForm">
+        <div class="field">
+          <label for="fAnnouncement">Announcement banner (topbar ke neeche dikhega; khaali = banner band)</label>
+          <input id="fAnnouncement" type="text" placeholder="e.g. 🎉 Pro plan jald aa raha hai — Free hamesha free rahega" />
+        </div>
+        <div class="field">
+          <label for="fProPrice">Pro plan price label</label>
+          <input id="fProPrice" type="text" placeholder="e.g. ₹499/month" />
+        </div>
+        <div class="field">
+          <label for="fBusinessPrice">Business plan price label</label>
+          <input id="fBusinessPrice" type="text" placeholder="e.g. ₹999/month" />
+        </div>
+        <div class="field">
+          <label for="fProLink">Pro payment link (Razorpay)</label>
+          <input id="fProLink" type="url" placeholder="https://rzp.io/…" />
+        </div>
+        <div class="field">
+          <label for="fBusinessLink">Business payment link (Razorpay)</label>
+          <input id="fBusinessLink" type="url" placeholder="https://rzp.io/…" />
+        </div>
+        <button class="btn primary" id="siteSave" type="button">💾 Save karo</button>
+        <div class="msg ok" id="siteOk">✓ Save ho gaya — site par turant live hai.</div>
+        <div class="msg err" id="siteErr"></div>
+      </div>
+      <div id="fsSetup" class="setup-steps hidden">
+        <h3>Firestore setup (ek baar, 2 minute)</h3>
+        <p>Site Control ke liye Firebase me Firestore database chahiye:</p>
+        <ol>
+          <li><a href="https://console.firebase.google.com" target="_blank" rel="noopener">Firebase console</a> kholo → project <code id="fsProj">gst-recon-ee386</code> → <strong>Build → Firestore Database</strong> → <strong>Create database</strong> → <strong>Start in production mode</strong> → location <code>asia-south1</code> (Mumbai) → Enable.</li>
+          <li><strong>Rules</strong> tab me ye rules daal ke <strong>Publish</strong> dabao (read sabke liye, write sirf tumhare liye):</li>
+        </ol>
+        <pre>rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /config/site {
+      allow read: if true;
+      allow write: if request.auth != null
+        &amp;&amp; request.auth.token.email == "prathameshrampure78@gmail.com";
+    }
+  }
+}</pre>
+        <p>Uske baad ye page reload karo — form khul jayega.</p>
+      </div>
+    </section>
+  </div>
+</div>
+
+<script>
+"use strict";
+/* Parent injects the real Measurement ID here after GA4 setup. Empty = not set yet. */
+var GA4_ID = "";
+var ADMIN_EMAIL = "prathameshrampure78@gmail.com";
+
+var fbAuth = null, fbStore = null, fbUser = null, fbProjectId = "";
+
+function showMsg(id, text){
+  var m = document.getElementById(id);
+  if(m){ m.textContent = text; m.classList.add("show"); }
+}
+function hideMsg(id){
+  var m = document.getElementById(id);
+  if(m) m.classList.remove("show");
+}
+
+/* ---------- tabs ---------- */
+document.getElementById("tabs").addEventListener("click", function(ev){
+  var t = ev.target.closest("[data-tab]");
+  if(!t) return;
+  var all = document.querySelectorAll("#tabs .tab");
+  for(var i = 0; i < all.length; i++) all[i].classList.remove("active");
+  t.classList.add("active");
+  var panes = document.querySelectorAll("[data-pane]");
+  for(var j = 0; j < panes.length; j++) panes[j].classList.toggle("hidden", panes[j].getAttribute("data-pane") !== t.getAttribute("data-tab"));
+});
+
+/* ---------- Firebase boot (config.js, then base64 fallback) ---------- */
+function bootFirebase(done){
+  function init(){
+    try{
+      if(typeof FIREBASE_CONFIG === "undefined" || !FIREBASE_CONFIG.apiKey){ done(new Error("no-config")); return; }
+      fbProjectId = FIREBASE_CONFIG.projectId || "";
+      if(!firebase.apps.length) firebase.initializeApp(FIREBASE_CONFIG);
+      fbAuth = firebase.auth();
+      try{ fbStore = firebase.firestore(); }catch(e){ fbStore = null; }
+      var pl = document.getElementById("fbUsersLink");
+      if(pl && fbProjectId) pl.href = "https://console.firebase.google.com/project/" + fbProjectId + "/authentication/users";
+      var pj = document.getElementById("fsProj");
+      if(pj && fbProjectId) pj.textContent = fbProjectId;
+      done(null);
+    }catch(e){ done(e); }
+  }
+  if(typeof FIREBASE_CONFIG !== "undefined"){ init(); return; }
+  var s = document.createElement("script");
+  s.src = "firebase-config.js";
+  s.onload = init;
+  s.onerror = function(){
+    var s2 = document.createElement("script");
+    s2.src = "data:application/javascript;base64,Y29uc3QgRklSRUJBU0VfQ09ORklHID0gewogIGFwaUtleTogIkFJemFTeUFrOExxcmlsYWM5dUtRc0NlcURFRkRQRlhjbGNpS1BXayIsCiAgYXV0aERvbWFpbjogImdzdC1yZWNvbi1lZTM4Ni5maXJlYmFzZWFwcC5jb20iLAogIHByb2plY3RJZDogImdzdC1yZWNvbi1lZTM4NiIsCiAgc3RvcmFnZUJ1Y2tldDogImdzdC1yZWNvbi1lZTM4Ni5maXJlYmFzZXN0b3JhZ2UuYXBwIiwKICBtZXNzYWdpbmdTZW5kZXJJZDogIjczNjMyNTgzOTQxMSIsCiAgYXBwSWQ6ICIxOjczNjMyNTgzOTQxMTp3ZWI6MWJlMmNiMDFhNjdkMGY0NmUwOTE0NiIKfTsK";
+    s2.onload = init;
+    s2.onerror = function(){ done(new Error("no-config")); };
+    document.head.appendChild(s2);
+  };
+  document.head.appendChild(s);
+}
+
+/* ---------- auth gate ---------- */
+function applyGate(){
+  var gate = document.getElementById("gate");
+  var denied = document.getElementById("denied");
+  var panel = document.getElementById("panel");
+  var outBtn = document.getElementById("signOutBtn");
+  gate.classList.add("hidden"); denied.classList.add("hidden"); panel.classList.add("hidden"); outBtn.classList.add("hidden");
+  if(!fbUser){ gate.classList.remove("hidden"); return; }
+  if(fbUser.email === ADMIN_EMAIL){
+    panel.classList.remove("hidden"); outBtn.classList.remove("hidden");
+    document.getElementById("adminWho").textContent = fbUser.email;
+    loadSiteControl();
+  } else {
+    denied.classList.remove("hidden");
+    document.getElementById("deniedWho").textContent = fbUser.email || "(unknown)";
+  }
+}
+
+document.getElementById("googleBtn").addEventListener("click", function(){
+  hideMsg("gateErr");
+  if(!fbAuth){ showMsg("gateErr", "Firebase abhi ready nahi — page reload karke phir try karo."); return; }
+  fbAuth.signInWithPopup(new firebase.auth.GoogleAuthProvider()).catch(function(e){
+    showMsg("gateErr", (e && e.message) || "Sign-in fail ho gaya.");
+  });
+});
+function doSignOut(){ if(fbAuth) fbAuth.signOut(); }
+document.getElementById("signOutBtn").addEventListener("click", doSignOut);
+document.getElementById("deniedOut").addEventListener("click", doSignOut);
+
+/* ---------- leads ---------- */
+var allLeads = [];
+function escH(s){ return String(s == null ? "" : s).replace(/[&<>"']/g, function(c){ return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]; }); }
+function renderLeads(q){
+  var body = document.getElementById("leadBody");
+  q = (q || "").trim().toLowerCase();
+  var shown = allLeads.filter(function(l){
+    if(!q) return true;
+    return (l.name + " " + l.type + " " + l.city + " " + l.contact + " " + l.why).toLowerCase().indexOf(q) !== -1;
+  });
+  document.getElementById("leadCount").textContent = "— " + shown.length + " / " + allLeads.length;
+  if(!shown.length){ body.innerHTML = "<tr><td colspan='5' class='muted'>Koi lead nahi mila.</td></tr>"; return; }
+  body.innerHTML = shown.map(function(l){
+    return "<tr><td><strong>" + escH(l.name) + "</strong></td><td>" + escH(l.type) + "</td><td>" + escH(l.city) + "</td><td>" + escH(l.contact) + "</td><td class='muted'>" + escH(l.why) + "</td></tr>";
+  }).join("");
+}
+document.getElementById("leadSearch").addEventListener("input", function(){ renderLeads(this.value); });
+fetch("leads.json").then(function(r){ return r.json(); }).then(function(j){
+  allLeads = Array.isArray(j) ? j : [];
+  renderLeads("");
+}).catch(function(){
+  document.getElementById("leadBody").innerHTML = "<tr><td colspan='5' class='muted'>leads.json load nahi hua.</td></tr>";
+});
+
+/* ---------- outreach copy buttons ---------- */
+var DRAFTS = {
+  d1: "Subject: GST ka 2B matching free me — 2 minute me ITC miss pakdo\n\nNamaste [Name] ji,\n\nMain Prathamesh — accountant hun, aur maine ek free tool banaya hai: GST Recon.\n\nAapka kaam ka hissa:\n- Purchase Register vs GSTR-2B matching — kaunsa ITC miss ho raha hai, turant pata\n- GSTIN validator — kisi bhi GSTIN ka state, PAN, holder type 2 second me (free sign-in ke baad)\n- Vendor Master — apne vendors ki apni database, bina kisi API/key ke\n- GSTR-3B summary — auto-computed\n\n100% free hai — bas ek free account banao (Google se, 10 second), aur aapka data aapke browser me hi rehta hai.\n\nTry karo: https://gst-recon.github.io/gst-recon/\n\nKoi sawal ho to reply kar dena.\n\nDhanyavaad,\nPrathamesh Rampure",
+  d2: "Subject: Free GST 2B reconciliation tool for your clients\n\nHello [Name],\n\nI'm Prathamesh, an accountant from Pune. I built GST Recon — a free GST reconciliation tool:\n\n- Purchase Register vs GSTR-2B matching (8 match categories, Excel report)\n- GSTR-1 vs e-invoice comparison, vendor/customer reconciliation\n- GSTIN/PAN validator with inline decoding\n- GSTR-3B summary, TDS guide, finance tracker\n\nNo API key, data stays in the browser. Free account needed (Google sign-in, 10 seconds). Useful for quick client-side checks before filing.\n\nLink: https://gst-recon.github.io/gst-recon/\n\nHappy to hear your feedback.\n\nRegards,\nPrathamesh Rampure",
+  d3: "Namaste [Name] ji, main Prathamesh (accountant, Pune). GST ke liye ek free tool banaya hai — 2B matching, GSTIN check, vendor master, sab free (bas Google se free sign-in): https://gst-recon.github.io/gst-recon/ — 2 minute try karke batayega kaisa laga? 🙏"
+};
+document.querySelectorAll("[data-copy]").forEach(function(b){
+  b.addEventListener("click", function(){
+    var t = DRAFTS[b.getAttribute("data-copy")] || "";
+    function done(){ b.textContent = "✓ Copy ho gaya"; setTimeout(function(){ b.textContent = "Copy karo"; }, 2000); }
+    if(navigator.clipboard && navigator.clipboard.writeText){
+      navigator.clipboard.writeText(t).then(done).catch(function(){ fallback(); });
+    } else fallback();
+    function fallback(){
+      var ta = document.createElement("textarea");
+      ta.value = t; document.body.appendChild(ta); ta.select();
+      try{ document.execCommand("copy"); }catch(e){}
+      document.body.removeChild(ta); done();
+    }
+  });
+});
+
+/* ---------- site control (Firestore) ---------- */
+function fsAvailable(){ return !!(fbStore && fbUser && fbUser.email === ADMIN_EMAIL); }
+function loadSiteControl(){
+  var warn = document.getElementById("fsWarn");
+  var setup = document.getElementById("fsSetup");
+  var form = document.getElementById("siteForm");
+  warn.classList.remove("show"); setup.classList.add("hidden"); form.classList.remove("hidden");
+  if(!fbStore){
+    form.classList.add("hidden"); setup.classList.remove("hidden");
+    return;
+  }
+  fbStore.doc("config/site").get().then(function(doc){
+    if(doc && doc.exists){
+      var d = doc.data() || {};
+      if(d.announcement) document.getElementById("fAnnouncement").value = d.announcement;
+      if(d.proPrice) document.getElementById("fProPrice").value = d.proPrice;
+      if(d.businessPrice) document.getElementById("fBusinessPrice").value = d.businessPrice;
+      if(d.proPaymentLink) document.getElementById("fProLink").value = d.proPaymentLink;
+      if(d.businessPaymentLink) document.getElementById("fBusinessLink").value = d.businessPaymentLink;
+    }
+  }).catch(function(e){
+    warn.textContent = "Firestore read fail hua (" + ((e && e.code) || "error") + ") — neeche setup steps follow karo, phir reload karo.";
+    warn.classList.add("show");
+    form.classList.add("hidden"); setup.classList.remove("hidden");
+  });
+}
+document.getElementById("siteSave").addEventListener("click", function(){
+  hideMsg("siteOk"); hideMsg("siteErr");
+  if(!fsAvailable()){ showMsg("siteErr", "Firestore ready nahi — pehle neeche setup complete karo."); return; }
+  var data = {
+    announcement: document.getElementById("fAnnouncement").value.trim(),
+    proPrice: document.getElementById("fProPrice").value.trim(),
+    businessPrice: document.getElementById("fBusinessPrice").value.trim(),
+    proPaymentLink: document.getElementById("fProLink").value.trim(),
+    businessPaymentLink: document.getElementById("fBusinessLink").value.trim(),
+    updatedAt: new Date().toISOString(),
+    updatedBy: fbUser.email
+  };
+  fbStore.doc("config/site").set(data, { merge: true }).then(function(){
+    showMsg("siteOk", "✓ Save ho gaya — site par turant live hai.");
+  }).catch(function(e){
+    showMsg("siteErr", "Save fail: " + ((e && e.message) || e));
+  });
+});
+
+/* ---------- boot ---------- */
+(function(){
+  var gaField = document.getElementById("gaIdField");
+  if(gaField && GA4_ID) gaField.value = GA4_ID;
+  bootFirebase(function(err){
+    if(err){ showMsg("gateErr", "Firebase config nahi mili — firebase-config.js repo me hona chahiye."); }
+    if(!fbAuth) return;
+    fbAuth.onAuthStateChanged(function(u){ fbUser = u; applyGate(); });
+  });
+})();
+</script>
+</body>
+</html>

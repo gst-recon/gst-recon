@@ -6,6 +6,13 @@
 <meta name="color-scheme" content="light dark" />
 <link rel="icon" href="data:," />
 <title>GST Recon — Free GST Reconciliation Tool</title>
+<meta name="description" content="Free GST reconciliation tool — GSTR-2B matching, GSTIN validator, vendor master, GSTR-3B summary. No software to install." />
+<meta name="keywords" content="GST reconciliation, GSTR-2B matching, GSTR-1, GSTIN validator, free GST tool, ITC reconciliation, GSTR-3B, India GST" />
+<meta property="og:title" content="GST Recon — Free GST Reconciliation Tool" />
+<meta property="og:description" content="Free GST reconciliation tool — GSTR-2B matching, GSTIN validator, vendor master, GSTR-3B summary. No software to install." />
+<meta property="og:type" content="website" />
+<meta property="og:url" content="https://gst-recon.github.io/gst-recon/" />
+<link rel="canonical" href="https://gst-recon.github.io/gst-recon/" />
 <link rel="preconnect" href="https://fonts.googleapis.com" />
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
 <link href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;700;800&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
@@ -300,6 +307,7 @@
   .qchip:hover{ border-color:var(--accent); color:var(--accent); }
   @media (prefers-reduced-motion: reduce){ #chatPanel{ transition:none; } .tdots i{ animation:none; opacity:.7; } }
 </style>
+<!-- GA4-GTAG-PLACEHOLDER -->
 </head>
 <body>
 
@@ -1202,6 +1210,23 @@
     <p class="fineprint">Signed-in users appear in the site owner's Firebase console (name, email, sign-in date).</p>
   </div>
 </div>
+<script>
+/* v4.1 — bulletproof auth-modal dismissal: X button, Escape key, backdrop click.
+   Runs in its own script block so it works even if other scripts hit an error. */
+(function(){
+  try{
+    var modal = document.getElementById("authModal");
+    if(!modal) return;
+    function closeModal(){ modal.classList.add("hidden"); }
+    var x = document.getElementById("authClose");
+    if(x) x.addEventListener("click", closeModal);
+    modal.addEventListener("click", function(ev){ if(ev.target === modal) closeModal(); });
+    document.addEventListener("keydown", function(ev){
+      if((ev.key === "Escape" || ev.key === "Esc") && !modal.classList.contains("hidden")) closeModal();
+    });
+  }catch(e){ /* never break the page */ }
+})();
+</script>
 
 <!-- ================= AI GST BOT ================= -->
 <button id="chatFab" type="button" aria-label="Open GST Assistant">💬</button>
@@ -2629,6 +2654,7 @@ window.VendorMasterAPI = (function(){
   var entries = [];
   try { var raw = JSON.parse(localStorage.getItem(KEY)); if(Array.isArray(raw)) entries = raw; } catch(e){ entries = []; }
   var editingGstin = "";
+  var deleteArmedFor = null; /* v4.1: armed delete target survives re-renders (filter typing etc.) */
   var storageOk = true;
 
   function el(id){ return document.getElementById(id); }
@@ -2812,6 +2838,7 @@ window.VendorMasterAPI = (function(){
       return (e.gstin + " " + e.legalName + " " + e.tradeName + " " + e.address + " " + e.stateName + " " + e.status).toLowerCase().indexOf(q) !== -1;
     });
     body.innerHTML = shown.map(function(e){
+      var armed = (deleteArmedFor === e.gstin); /* v4.1: armed state kept in variable, survives re-render */
       return "<tr><td class='num'>" + esc(e.gstin) + "</td>" +
         "<td class='vm-wrap'>" + esc(e.legalName || "—") + "</td>" +
         "<td class='vm-wrap'>" + esc(e.tradeName || "—") + "</td>" +
@@ -2821,7 +2848,7 @@ window.VendorMasterAPI = (function(){
         "<td><div class='vm-actions'>" +
           "<button class='btn' type='button' data-vm-view='" + esc(e.gstin) + "'>Dekho</button>" +
           "<button class='btn' type='button' data-vm-edit='" + esc(e.gstin) + "'>Edit</button>" +
-          "<button class='btn danger' type='button' data-vm-del='" + esc(e.gstin) + "'>Delete</button>" +
+          "<button class='btn danger" + (armed ? " confirming" : "") + "' type='button' data-vm-del='" + esc(e.gstin) + "'>" + (armed ? "Pakka delete?" : "Delete") + "</button>" +
         "</div></td></tr>";
     }).join("");
     var empty = el("vmEmpty");
@@ -3021,16 +3048,17 @@ window.VendorMasterAPI = (function(){
       if(v){ renderDetail(find(v.getAttribute("data-vm-view"))); var d = el("vmDetail"); if(d) d.scrollIntoView({ behavior:"smooth", block:"center" }); }
       else if(ed){ openEdit(ed.getAttribute("data-vm-edit")); }
       else if(del){
-        if(del.classList.contains("confirming")){
-          var g = del.getAttribute("data-vm-del");
+        /* v4.1: armed state lives in deleteArmedFor (module scope) so re-renders never lose it */
+        var g = del.getAttribute("data-vm-del");
+        if(deleteArmedFor === g){
+          deleteArmedFor = null;
           removeEntry(g);
           renderDetail(null);
           if(editingGstin === g) resetForm();
           vmShowMsg("ok", "Vendor " + g + " Vendor Master se delete ho gaya.");
         } else {
-          del.classList.add("confirming");
-          del.textContent = "Pakka delete?";
-          setTimeout(function(){ del.classList.remove("confirming"); del.textContent = "Delete"; }, 3000);
+          deleteArmedFor = g;
+          renderAll();
         }
       }
     });
@@ -3196,7 +3224,7 @@ window.VendorMasterAPI = (function(){
         });
       }
     } else {
-      out.innerHTML = "<div class='msg show err'>✗ <strong>" + escH(v) + "</strong> — " + escH(d.reason) + ". Sahi GSTIN daalkar phir try karo, ya neeche wale GSTIN / PAN Search tab me kai GSTINs ek saath check karo.</div>";
+      out.innerHTML = "<div class='msg show err'>✗ <strong>" + escH(v) + "</strong> — " + escH(d.reason) + ". Sahi GSTIN daalkar phir try karo. Bulk check ke liye free sign-in karo (Google se, 10 second me).</div>";
     }
   });
 })();
@@ -3304,6 +3332,60 @@ function refreshApiKeyUI(){
       }
     });
   });
+})();
+</script>
+<script>
+/* v4.1 — Firestore remote config (optional): reads doc config/site and applies
+   announcement banner + pricing. Fully wrapped in try/catch — the site works
+   100% if Firestore is absent, disabled, or the read fails. */
+(function(){
+  function applyConfig(cfg){
+    try{
+      if(!cfg || typeof cfg !== "object") return;
+      if(cfg.announcement){
+        var bar = document.getElementById("siteAnnouncement");
+        if(!bar){
+          bar = document.createElement("div");
+          bar.id = "siteAnnouncement";
+          bar.setAttribute("role", "status");
+          bar.style.cssText = "background:#0d6a4a;color:#fff;text-align:center;padding:.55rem 1rem;font-weight:600;font-size:.95rem;";
+          var topbar = document.querySelector(".topbar");
+          if(topbar && topbar.parentNode) topbar.parentNode.insertBefore(bar, topbar.nextSibling);
+          else if(document.body) document.body.insertBefore(bar, document.body.firstChild);
+        }
+        bar.textContent = String(cfg.announcement);
+      }
+      var heads = document.querySelectorAll(".price-head");
+      for(var i = 0; i < heads.length; i++){
+        var h3 = heads[i].querySelector("h3");
+        var pill = heads[i].querySelector(".pill");
+        if(!h3 || !pill) continue;
+        var name = h3.textContent.trim().toLowerCase();
+        if(name === "pro" && cfg.proPrice) pill.textContent = String(cfg.proPrice);
+        if(name === "business" && cfg.businessPrice) pill.textContent = String(cfg.businessPrice);
+      }
+    }catch(e){ /* never break the page */ }
+  }
+  function tryRead(attempt){
+    try{
+      if(attempt > 12) return; /* ~12s of retries, then give up silently */
+      if(typeof FIREBASE_CONFIG === "undefined" || !FIREBASE_CONFIG.apiKey){ setTimeout(function(){ tryRead(attempt + 1); }, 1000); return; }
+      if(typeof firebase === "undefined" || !firebase.apps || !firebase.apps.length){ setTimeout(function(){ tryRead(attempt + 1); }, 1000); return; }
+      if(typeof firebase.firestore === "undefined"){
+        var s = document.createElement("script");
+        s.src = "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js";
+        s.onload = function(){ tryRead(attempt + 1); };
+        s.onerror = function(){ /* Firestore unavailable — site works without it */ };
+        document.head.appendChild(s);
+        return;
+      }
+      firebase.firestore().doc("config/site").get().then(function(doc){
+        if(doc && doc.exists) applyConfig(doc.data());
+      }).catch(function(){ /* silent — site works without remote config */ });
+    }catch(e){ /* never break the page */ }
+  }
+  if(document.readyState === "complete" || document.readyState === "interactive") tryRead(0);
+  else document.addEventListener("DOMContentLoaded", function(){ tryRead(0); });
 })();
 </script>
 </body>
