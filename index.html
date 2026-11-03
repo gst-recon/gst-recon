@@ -1470,6 +1470,117 @@ function normHeaderFlat(h){
   return String(h === null || h === undefined ? "" : h).toLowerCase().replace(/[^a-z0-9]/g, "");
 }
 
+/* ---------- Content-based column sniffing (headerless fallback) ----------
+   Scans DATA (not headers) to guess column roles. Used only when the
+   header row looks blank/garbage. Returns { colIdx:{field:j}, rates:{field:rate} }. */
+function cellStr(v){ return String(v === null || v === undefined ? "" : v).trim(); }
+function isGstinCell(s){
+  var t = cellStr(s).toUpperCase().replace(/[\s\-]/g, "");
+  if(/^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z][A-Z0-9]Z[A-Z0-9]$/.test(t)) return 1;
+  if(/^[0-9]{2}[A-Z0-9]{13}$/.test(t)) return 0.5;
+  return 0;
+}
+function isDateCell(s){
+  var t = cellStr(s);
+  if(!t) return false;
+  return /^\d{1,2}[\/\-]\d{1,2}[\/\-](\d{2}|\d{4})$/.test(t) || /^\d{4}-\d{1,2}-\d{1,2}$/.test(t);
+}
+function numVal(s){
+  var t = cellStr(s).replace(/[₹,\s]/g, "");
+  if(t === "" || t === "-" || t === ".") return NaN;
+  var neg = false;
+  var pm = t.match(/^\((.*)\)$/);
+  if(pm){ neg = true; t = pm[1]; }
+  var n = Number(t);
+  return isNaN(n) ? NaN : (neg ? -n : n);
+}
+function sniffColumns(grid){
+  var nCols = grid[0].length;
+  var data = grid.slice(1, 51).filter(function(r){
+    return r.some(function(c){ return cellStr(c) !== ""; });
+  });
+  var n = Math.max(data.length, 1), stats = [], j;
+  for(j = 0; j < nCols; j++){
+    var g = 0, d = 0, nu = 0, tx = 0, sum = 0, cnt = 0, nonEmpty = 0;
+    data.forEach(function(r){
+      var s = cellStr(r[j]);
+      if(!s) return;
+      nonEmpty++;
+      g += isGstinCell(s);
+      if(isDateCell(s)) d++;
+      var nv = numVal(s);
+      if(!isNaN(nv)){ nu++; sum += nv; cnt++; }
+      if(s.length < 30) tx++;
+    });
+    stats.push({ j:j,
+      gstinRate: nonEmpty ? g / nonEmpty : 0,
+      dateRate:  nonEmpty ? d / nonEmpty : 0,
+      numRate:   nonEmpty ? nu / nonEmpty : 0,
+      textRate:  nonEmpty ? tx / nonEmpty : 0,
+      avgNum:    cnt ? sum / cnt : 0 });
+  }
+  var colIdx = {}, rates = {}, usedCols = {}, guesses = {};
+  function take(f, jj, rate){ colIdx[f] = jj; rates[f] = rate; usedCols[jj] = true; }
+  function guess(f, jj){ if(jj !== undefined && jj !== -1 && guesses[f] === undefined) guesses[f] = jj; }
+  function bestUnused(key, min){
+    var bj = -1, br = -1;
+    stats.forEach(function(st){
+      if(usedCols[st.j]) return;
+      if(st[key] > br){ br = st[key]; bj = st.j; }
+    });
+    return { j: bj, rate: br, ok: br >= min };
+  }
+  var b = bestUnused("gstinRate", 0.5);
+  if(b.j !== -1){ guess("supplier_gstin", b.j); if(b.ok) take("supplier_gstin", b.j, b.rate); }
+  b = bestUnused("dateRate", 0.5);
+  if(b.j !== -1){ guess("invoice_date", b.j); if(b.ok) take("invoice_date", b.j, b.rate); }
+  // taxable_value = numeric column with the highest average value
+  var tn = null;
+  stats.forEach(function(st){
+    if(usedCols[st.j] || st.numRate < 0.5) return;
+    if(!tn || st.avgNum > tn.avg) tn = { j: st.j, avg: st.avgNum };
+  });
+  if(tn){ guess("taxable_value", tn.j); take("taxable_value", tn.j, 1); }
+  // cgst/sgst = the numeric pair whose values are most often equal row-wise
+  var numCols = stats.filter(function(st){ return !usedCols[st.j] && st.numRate >= 0.5; })
+                     .map(function(st){ return st.j; });
+  var bestPair = null, bestEq = -1, a, c;
+  for(a = 0; a < numCols.length; a++){
+    for(c = a + 1; c < numCols.length; c++){
+      var eq = 0, tot = 0;
+      data.forEach(function(r){
+        var va = numVal(r[numCols[a]]), vb = numVal(r[numCols[c]]);
+        if(isNaN(va) || isNaN(vb)) return;
+        tot++;
+        if(va === vb) eq++;
+      });
+      var rate = tot ? eq / tot : 0;
+      if(rate > bestEq){ bestEq = rate; bestPair = [numCols[a], numCols[c]]; }
+    }
+  }
+  if(bestPair){
+    var flat = grid[0].map(normHeaderFlat);
+    var first = bestPair[0], second = bestPair[1];
+    if(flat[second].indexOf("cgst") !== -1 || flat[first].indexOf("sgst") !== -1){
+      first = bestPair[1]; second = bestPair[0];
+    } else if(first > second){
+      first = bestPair[1]; second = bestPair[0];
+    }
+    guess("cgst", first); guess("sgst", second);
+    if(bestEq >= 0.5){ take("cgst", first, bestEq); take("sgst", second, bestEq); }
+  }
+  b = bestUnused("numRate", 0.5);
+  if(b.j !== -1){ guess("igst", b.j); if(b.ok) take("igst", b.j, b.rate); }
+  // invoice_number = most text-like column that isn't GSTIN-shaped
+  var bn = null;
+  stats.forEach(function(st){
+    if(usedCols[st.j] || st.gstinRate >= 0.5) return;
+    if(!bn || st.textRate > bn.rate) bn = { j: st.j, rate: st.textRate };
+  });
+  if(bn){ guess("invoice_number", bn.j); if(bn.rate > 0.5) take("invoice_number", bn.j, bn.rate); }
+  return { colIdx: colIdx, rates: rates, guesses: guesses };
+}
+
 /* Smart column mapping: exact alias hit wins, then substring fallback.
    "date" alone only matches invoice_date when no better date header exists. */
 function smartMapHeaders(grid, sourceName, overrides){
@@ -1520,8 +1631,26 @@ function smartMapHeaders(grid, sourceName, overrides){
       if(hit !== -1){ claim(f, hit, "fuzzy"); break; }
     }
   });
+  // 4) content sniffing fallback — only when headers look blank/garbage
+  var sniffGuess = {}, sniffed = false;
+  var nonEmptyHeaders = rawHeaders.filter(function(h){ return h !== ""; }).length;
+  var stillUnmapped = FIELDS.filter(function(f){ return colIdx[f] === undefined; });
+  if(stillUnmapped.length && nonEmptyHeaders < 3 && grid.length > 1){
+    var sniff = sniffColumns(grid);
+    sniffed = true;
+    stillUnmapped.forEach(function(f){
+      var sj = sniff.colIdx[f];
+      if(sj !== undefined){
+        sniffGuess[f] = sj;   // pre-select in the mapping panel even if not claimed
+        if(sniff.rates[f] >= 0.7) claim(f, sj, "sniff");
+      } else if(sniff.guesses[f] !== undefined){
+        sniffGuess[f] = sniff.guesses[f];   // low-confidence: pre-select only, panel still opens
+      }
+    });
+  }
   FIELDS.forEach(function(f){ if(colIdx[f] === undefined) unmapped.push(f); });
-  return { colIdx: colIdx, mappings: mappings, unmapped: unmapped, headers: rawHeaders, flat: flat, used: used, sourceName: sourceName };
+  return { colIdx: colIdx, mappings: mappings, unmapped: unmapped, headers: rawHeaders,
+           flat: flat, used: used, sourceName: sourceName, sniffed: sniffed, sniffGuess: sniffGuess };
 }
 
 /* Best-guess header index for the mapping panel dropdowns. */
@@ -1567,17 +1696,22 @@ function rowsToRecords(grid, sourceName){
   return recordsFromMap(grid, map, sourceName);
 }
 
-/* "Auto-mapped: 'Bill No' → Invoice No, ..." — only lists non-canonical headers. */
+/* "Auto-mapped: 'Bill No' → Invoice No, ..." — only lists non-canonical headers.
+   Adds a data-scan note when content sniffing filled the gaps. */
 function autoMapNote(maps){
-  var parts = [];
+  var parts = [], sniffed = false;
   maps.forEach(function(m){
+    if(m.sniffed) sniffed = true;
     m.mappings.forEach(function(x){
+      if(x.how === "sniff") return;
       if(normHeaderFlat(x.header) !== normHeaderFlat(x.label)){
         parts.push("'" + x.header + "' \u2192 " + x.label);
       }
     });
   });
-  return parts.length ? " \uD83D\uDD0D Auto-mapped: " + parts.join(", ") + "." : "";
+  var out = parts.length ? " \uD83D\uDD0D Auto-mapped: " + parts.join(", ") + "." : "";
+  if(sniffed) out += " \uD83D\uDD0D Headers blank the \u2014 data scan karke columns pehchane.";
+  return out;
 }
 
 function escHtml(s){
@@ -1606,6 +1740,8 @@ function showMappingPanel(paneId, msgEl, fileMaps, onContinue){
     html += "<h4>\uD83D\uDCC4 " + escHtml(fm.name) + "</h4>";
     fm.map.unmapped.forEach(function(f){
       var guess = guessHeaderFor(f, fm.map.flat, fm.map.used);
+      if(guess === -1 && fm.map.sniffGuess && fm.map.sniffGuess[f] !== undefined &&
+         !fm.map.used[fm.map.sniffGuess[f]]) guess = fm.map.sniffGuess[f];
       html += "<div class=\"map-row\"><label>" + escHtml(FIELD_LABEL[f]) + " <span class=\"req\">*</span></label>" +
         "<select data-fi=\"" + fi + "\" data-field=\"" + f + "\">" +
         "<option value=\"\">\u2014 column chuno \u2014</option>";
