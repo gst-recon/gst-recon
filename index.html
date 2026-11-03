@@ -10,6 +10,10 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
 <link href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;700;800&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
 <script src="https://cdn.sheetjs.com/xlsx-0.20.2/package/dist/xlsx.full.min.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+<!-- firebase-config.js (defines FIREBASE_CONFIG) is loaded at runtime by the auth code below:
+     repo root on GitHub Pages, assets/ fallback in this artifact. Missing file = graceful no-auth mode. -->
 <style>
   :root{
     --bg:#f4f6f4; --surface:#ffffff; --surface-2:#eef1ee; --ink:#16211b; --ink-soft:#43544a;
@@ -116,6 +120,54 @@
   .howlist .card h3{ margin:.1rem 0 .4rem; font-size:1rem; }
   .howlist .card p{ margin:0; color:var(--ink-soft); font-size:.92rem; }
   .hidden{ display:none !important; }
+
+  /* ---------- branding / auth ---------- */
+  .tagline{ color:var(--ink-soft); font-size:.92rem; font-weight:600; }
+  .autharea{ margin-left:auto; display:flex; align-items:center; gap:.6rem; flex-wrap:wrap; }
+  .auth-note{ color:var(--ink-soft); font-size:.88rem; max-width:300px; }
+  .chip{ background:var(--accent-soft); color:var(--accent); font-weight:700; padding:.42rem .85rem; border-radius:99px; font-size:.9rem; max-width:220px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+
+  /* ---------- tool tabs ---------- */
+  .tabbar{ display:flex; gap:.25rem; flex-wrap:wrap; margin-top:1.8rem; border-bottom:2px solid var(--line); }
+  .tabbtn{ background:none; border:none; border-bottom:3px solid transparent; padding:.7rem .85rem; font-weight:700; font-size:.97rem; color:var(--ink-soft); margin-bottom:-2px; }
+  .tabbtn:hover{ color:var(--accent); }
+  .tabbtn.active{ color:var(--accent); border-bottom-color:var(--accent); }
+  .tabpane{ display:none; }
+  .tabpane.active{ display:block; }
+
+  /* ---------- sign-in gate ---------- */
+  .gatewrap{ position:relative; }
+  .gate-overlay{ display:none; position:absolute; inset:0; z-index:5; align-items:center; justify-content:center; background:color-mix(in srgb, var(--bg) 82%, transparent); border-radius:12px; padding:1rem; }
+  body.auth-locked .gate-overlay{ display:flex; }
+  .gate-box{ text-align:center; background:var(--surface); border:1px solid var(--line); border-radius:12px; padding:1.4rem 1.6rem; max-width:340px; box-shadow:0 10px 30px rgba(0,0,0,.14); }
+  .gate-box p{ margin:0 0 .9rem; font-weight:600; }
+  .results-box{ display:none; margin-top:1.6rem; }
+  .results-box.show{ display:block; }
+
+  /* ---------- auth modal ---------- */
+  .modal-back{ position:fixed; inset:0; z-index:80; background:rgba(10,15,12,.55); display:flex; align-items:center; justify-content:center; padding:1rem; }
+  .modal-card{ background:var(--surface); color:var(--ink); border-radius:14px; padding:1.6rem; width:100%; max-width:400px; position:relative; max-height:90vh; overflow-y:auto; }
+  .modal-card h3{ margin:.1rem 2rem 1rem 0; font-size:1.25rem; }
+  .modal-x{ position:absolute; top:.55rem; right:.75rem; background:none; border:none; font-size:1.55rem; color:var(--ink-soft); line-height:1; padding:.2rem; }
+  .authtabs{ display:flex; gap:.5rem; margin-bottom:1.1rem; }
+  .atab{ flex:1; padding:.55rem; border:1px solid var(--line); background:var(--surface); border-radius:8px; font-weight:700; color:var(--ink-soft); }
+  .atab.active{ background:var(--accent-soft); color:var(--accent); border-color:var(--accent); }
+  .gbtn{ width:100%; justify-content:center; }
+  .fineprint{ font-size:.82rem; color:var(--ink-soft); margin:1rem 0 0; }
+  .modal-card .field{ margin-bottom:.8rem; }
+
+  /* ---------- AI chat ---------- */
+  #chatFab{ position:fixed; right:1.1rem; bottom:1.1rem; z-index:70; width:56px; height:56px; border-radius:50%; border:none; background:var(--accent); color:#fff; font-size:1.45rem; box-shadow:0 8px 24px rgba(0,0,0,.25); }
+  #chatPanel{ position:fixed; right:1.1rem; bottom:5.4rem; z-index:70; width:min(360px, calc(100vw - 2rem)); height:480px; max-height:72vh; background:var(--surface); border:1px solid var(--line); border-radius:14px; display:flex; flex-direction:column; overflow:hidden; box-shadow:0 16px 40px rgba(0,0,0,.22); }
+  .chat-head{ background:var(--accent); color:var(--accent-ink); font-weight:700; padding:.8rem 1rem; display:flex; align-items:center; }
+  .chat-head button{ margin-left:auto; background:none; border:none; color:inherit; font-size:1.35rem; line-height:1; }
+  .chat-msgs{ flex:1; overflow-y:auto; padding:.9rem; display:flex; flex-direction:column; gap:.6rem; }
+  .cm{ max-width:85%; padding:.55rem .8rem; border-radius:12px; font-size:.93rem; white-space:pre-wrap; word-break:break-word; }
+  .cm.bot{ background:var(--surface-2); align-self:flex-start; }
+  .cm.user{ background:var(--accent); color:var(--accent-ink); align-self:flex-end; }
+  .cm.typing{ color:var(--ink-soft); font-style:italic; }
+  .chat-in{ display:flex; gap:.5rem; padding:.7rem; border-top:1px solid var(--line); }
+  .chat-in input{ flex:1; min-width:0; padding:.55rem .7rem; border:1px solid var(--line); border-radius:8px; background:var(--surface); }
 </style>
 </head>
 <body>
@@ -123,26 +175,34 @@
 <header class="topbar">
   <div class="topbar-in">
     <a class="brand" href="#top">GST<span>Recon</span></a>
-    <nav class="main">
-      <a href="#reconcile">Reconcile</a>
-      <a href="#finance">Finance Tracker</a>
-    </nav>
+    <span class="tagline">Free GST tools for Indian businesses</span>
+    <div class="autharea" id="authArea"></div>
   </div>
 </header>
 
 <main class="wrap" id="top">
 
   <div class="hero">
-    <h1>Match your Purchase Register with GSTR-2B — right here, free.</h1>
-    <p>Upload both files and get a full reconciliation: matched invoices, missing and extra entries, duplicates, value and tax mismatches, and invalid GSTINs — with a downloadable Excel report. No sign-up needed to use the tool.</p>
-    <a class="btn primary big" href="#reconcile">Start reconciling</a>
+    <h1>Free GST tools for Indian businesses.</h1>
+    <p>Reconcile your Purchase Register with GSTR-2B and your Sales Register with GSTR-1, validate GSTINs in bulk, and estimate your GSTR-3B payable — all in your browser, with downloadable Excel reports.</p>
+    <a class="btn primary big" href="#tools">Start reconciling</a>
   </div>
 
-  <!-- ================= RECONCILE ================= -->
-  <section class="block" id="reconcile">
-    <h2>Reconcile two files</h2>
+  <!-- ================= TOOL TABS ================= -->
+  <div class="tabbar" id="tools">
+    <button class="tabbtn active" data-tab="pane-2b" type="button">2B Reconciliation</button>
+    <button class="tabbtn" data-tab="pane-g1" type="button">GSTR-1 Reconciliation</button>
+    <button class="tabbtn" data-tab="pane-val" type="button">GSTIN Validator</button>
+    <button class="tabbtn" data-tab="pane-3b" type="button">GSTR-3B Summary</button>
+    <button class="tabbtn" data-tab="pane-fin" type="button">Finance Tracker</button>
+  </div>
+
+  <!-- ================= 2B RECONCILE ================= -->
+  <section class="block tabpane active" id="pane-2b">
+    <h2>Reconcile Purchase Register with GSTR-2B</h2>
     <p class="sub">CSV or Excel (.xlsx), up to 10 MB each. Both files need these columns (names are matched flexibly): Supplier GSTIN, Invoice No, Invoice Date, Taxable Value, CGST, SGST, IGST.</p>
 
+    <div class="gatewrap">
     <div class="card">
       <div class="grid2">
         <div class="drop" id="dropReg">
@@ -168,31 +228,118 @@
       <div id="results">
         <div class="statgrid" id="statGrid"></div>
         <div class="runrow" style="margin:0 0 1rem;">
-          <button class="btn primary" id="dlBtn">Download Excel report</button>
+          <button class="btn primary" id="dlBtn">⬇ Download Excel Report</button>
           <span style="color:var(--ink-soft); font-size:.9rem;">One workbook — Summary sheet first, then one sheet per category.</span>
         </div>
         <div id="catTables"></div>
       </div>
     </div>
+    <div class="gate-overlay"><div class="gate-box"><p>🔒 Sign in to use this tool — 10 seconds, free.</p><button class="btn primary" data-signin type="button">Sign in</button></div></div>
+    </div>
   </section>
 
-  <!-- ================= HOW ================= -->
-  <section class="block" id="how">
-    <h2>How matching works</h2>
-    <p class="sub">A row counts as matched only when supplier GSTIN, invoice number, invoice date, taxable value, CGST, SGST and IGST are all exactly equal in both files. Everything else lands in one of these buckets:</p>
-    <div class="howlist">
-      <div class="card"><h3>Missing in 2B</h3><p>In your Purchase Register but not in GSTR-2B — ITC you may not be able to claim yet.</p></div>
-      <div class="card"><h3>Extra in 2B</h3><p>In GSTR-2B but not in your register — purchases you may have missed booking.</p></div>
-      <div class="card"><h3>Value &amp; tax mismatches</h3><p>Same GSTIN and invoice number in both files, but the taxable value or the CGST / SGST / IGST amounts differ.</p></div>
-      <div class="card"><h3>Duplicates &amp; invalid GSTINs</h3><p>Same invoice entered twice in one file, and GSTINs that fail the official check-digit validation — each with the exact reason.</p></div>
+  <!-- ================= GSTR-1 RECONCILE ================= -->
+  <section class="block tabpane" id="pane-g1">
+    <h2>Reconcile Sales Register with GSTR-1</h2>
+    <p class="sub">CSV or Excel (.xlsx), up to 10 MB each. Same columns as the 2B tool (names are matched flexibly): GSTIN, Invoice No, Invoice Date, Taxable Value, CGST, SGST, IGST. Finds sales you booked but never filed, entries sitting in GSTR-1 that are not in your books, duplicates, mismatches and invalid GSTINs.</p>
+
+    <div class="gatewrap">
+    <div class="card">
+      <div class="grid2">
+        <div class="drop" id="dropSales">
+          <h3>1 · Sales Register (books)</h3>
+          <p>Your books — the sales invoices you have recorded.</p>
+          <input type="file" id="fileSales" accept=".csv,.xlsx" />
+          <div class="fname" id="nameSales"></div>
+        </div>
+        <div class="drop" id="dropG1">
+          <h3>2 · GSTR-1 (portal)</h3>
+          <p>The return data downloaded from the GST portal.</p>
+          <input type="file" id="fileG1" accept=".csv,.xlsx" />
+          <div class="fname" id="nameG1"></div>
+        </div>
+      </div>
+      <div class="runrow">
+        <button class="btn primary big" id="runBtn1">Run reconciliation</button>
+        <button class="linkbtn" id="sampleBtn1" type="button">Download sample files to try it</button>
+      </div>
+      <div class="msg" id="toolMsg1" role="alert"></div>
+
+      <div id="results1" class="results-box">
+        <div class="statgrid" id="statGrid1"></div>
+        <div class="runrow" style="margin:0 0 1rem;">
+          <button class="btn primary" id="dlBtn1">⬇ Download Excel Report</button>
+          <span style="color:var(--ink-soft); font-size:.9rem;">One workbook — Summary sheet first, then one sheet per category.</span>
+        </div>
+        <div id="catTables1"></div>
+      </div>
+    </div>
+    <div class="gate-overlay"><div class="gate-box"><p>🔒 Sign in to use this tool — 10 seconds, free.</p><button class="btn primary" data-signin type="button">Sign in</button></div></div>
+    </div>
+  </section>
+
+  <!-- ================= GSTIN VALIDATOR ================= -->
+  <section class="block tabpane" id="pane-val">
+    <h2>GSTIN Validator</h2>
+    <p class="sub">Check GSTINs in bulk — the 15-character format (state code 01–37, PAN pattern, entity code, 'Z') plus the official check digit. Paste one GSTIN per line.</p>
+
+    <div class="gatewrap">
+    <div class="card">
+      <div class="field"><label class="f" for="valInput">Paste GSTINs (one per line)</label>
+        <textarea id="valInput" rows="8" placeholder="27AAECB1234F1Z5&#10;29AAKCS5678L1ZD"></textarea></div>
+      <div class="runrow">
+        <button class="btn primary big" id="valBtn" type="button">Validate</button>
+        <button class="btn hidden" id="dlValBtn" type="button">⬇ Download Excel</button>
+      </div>
+      <div class="msg" id="valMsg"></div>
+      <div id="valResults" class="hidden">
+        <p id="valSummary" style="font-weight:700;"></p>
+        <div class="tblwrap" style="border-top:none;">
+          <table><thead><tr><th>GSTIN</th><th>Status</th><th>Reason</th></tr></thead><tbody id="valBody"></tbody></table>
+        </div>
+      </div>
+    </div>
+    <div class="gate-overlay"><div class="gate-box"><p>🔒 Sign in to use this tool — 10 seconds, free.</p><button class="btn primary" data-signin type="button">Sign in</button></div></div>
+    </div>
+  </section>
+
+  <!-- ================= GSTR-3B SUMMARY ================= -->
+  <section class="block tabpane" id="pane-3b">
+    <h2>GSTR-3B Summary</h2>
+    <p class="sub">Estimate helper — verify with your CA. Enter your outward tax and the ITC available under each head; net payable per head is output tax minus ITC, never below zero. This is a simplified estimate — it does not cover reverse charge, late fee, or interest.</p>
+
+    <div class="gatewrap">
+    <div class="card">
+      <div class="formgrid">
+        <div class="field"><label class="f" for="b3OutVal">Outward taxable value (₹)</label><input type="number" id="b3OutVal" min="0" step="0.01" placeholder="0.00" /></div>
+        <div class="field"><label class="f" for="b3IgstOut">IGST on outward (₹)</label><input type="number" id="b3IgstOut" min="0" step="0.01" placeholder="0.00" /></div>
+        <div class="field"><label class="f" for="b3CgstOut">CGST on outward (₹)</label><input type="number" id="b3CgstOut" min="0" step="0.01" placeholder="0.00" /></div>
+        <div class="field"><label class="f" for="b3SgstOut">SGST on outward (₹)</label><input type="number" id="b3SgstOut" min="0" step="0.01" placeholder="0.00" /></div>
+        <div class="field"><label class="f" for="b3ItcIgst">ITC — IGST (₹)</label><input type="number" id="b3ItcIgst" min="0" step="0.01" placeholder="0.00" /></div>
+        <div class="field"><label class="f" for="b3ItcCgst">ITC — CGST (₹)</label><input type="number" id="b3ItcCgst" min="0" step="0.01" placeholder="0.00" /></div>
+        <div class="field"><label class="f" for="b3ItcSgst">ITC — SGST (₹)</label><input type="number" id="b3ItcSgst" min="0" step="0.01" placeholder="0.00" /></div>
+      </div>
+      <div class="runrow"><button class="btn primary big" id="b3Btn" type="button">Calculate net payable</button></div>
+      <div id="b3Result" class="hidden">
+        <div class="tblwrap" style="border-top:none; margin-top:.4rem;">
+          <table>
+            <thead><tr><th>Tax head</th><th class="n">Output tax (₹)</th><th class="n">ITC (₹)</th><th class="n">Net payable (₹)</th></tr></thead>
+            <tbody id="b3Body"></tbody>
+          </table>
+        </div>
+        <p id="b3Total" style="font-size:1.08rem; font-weight:800; margin-bottom:0;"></p>
+      </div>
+    </div>
+    <div class="gate-overlay"><div class="gate-box"><p>🔒 Sign in to use this tool — 10 seconds, free.</p><button class="btn primary" data-signin type="button">Sign in</button></div></div>
     </div>
   </section>
 
   <!-- ================= FINANCE ================= -->
-  <section class="block" id="finance">
+  <section class="block tabpane" id="pane-fin">
     <h2>Business finance tracker</h2>
     <p class="sub">Track your own revenue and expenses for the business. Entries are stored only in this browser on this device. Tick “Verified” once you have checked an entry against a bill, bank record or statement — only verified entries count toward net profit.</p>
 
+    <div class="gatewrap">
     <div class="fin-stats">
       <div class="stat"><div class="k">Verified net profit</div><div class="v num" id="finNet">₹0</div><div class="a">verified revenue − verified expenses</div></div>
       <div class="stat"><div class="k">Verified revenue</div><div class="v num" id="finRev">₹0</div><div class="a" id="finRevAll"></div></div>
@@ -255,12 +402,19 @@
         <div class="empty-note" id="reEmpty">No reinvestments logged yet.</div>
       </div>
     </div>
+    <div class="gate-overlay"><div class="gate-box"><p>🔒 Sign in to use this tool — 10 seconds, free.</p><button class="btn primary" data-signin type="button">Sign in</button></div></div>
+    </div>
   </section>
 
-  <!-- ================= NO ACCOUNT NEEDED ================= -->
-  <section class="block" id="no-account">
-    <div class="card">
-      <p style="margin:0;">This public tool needs no account — just upload your files and reconcile.</p>
+  <!-- ================= HOW ================= -->
+  <section class="block" id="how">
+    <h2>How matching works</h2>
+    <p class="sub">A row counts as matched only when GSTIN, invoice number, invoice date, taxable value, CGST, SGST and IGST are all exactly equal in both files. Everything else lands in one of these buckets:</p>
+    <div class="howlist">
+      <div class="card"><h3>Missing in the portal file</h3><p>In your books but not in GSTR-2B or GSTR-1 — for purchases, ITC you may not be able to claim yet; for sales, invoices you still need to file.</p></div>
+      <div class="card"><h3>Extra in the portal file</h3><p>In GSTR-2B or GSTR-1 but not in your books — entries you may have missed recording.</p></div>
+      <div class="card"><h3>Value &amp; tax mismatches</h3><p>Same GSTIN and invoice number in both files, but the taxable value or the CGST / SGST / IGST amounts differ.</p></div>
+      <div class="card"><h3>Duplicates &amp; invalid GSTINs</h3><p>Same invoice entered twice in one file, and GSTINs that fail the official check-digit validation — each with the exact reason.</p></div>
     </div>
   </section>
 
@@ -268,9 +422,47 @@
 
 <footer>
   <div class="foot-in">
-    <strong>GST Recon</strong> — Free public tool. Your files never leave your browser — everything runs on your device. Finance entries are stored only in this browser.
+    GST Recon — free tools for Indian businesses. Your files never leave your browser.
   </div>
 </footer>
+
+<!-- ================= AUTH MODAL ================= -->
+<div class="modal-back hidden" id="authModal">
+  <div class="modal-card">
+    <button class="modal-x" id="authClose" type="button" aria-label="Close">×</button>
+    <h3>Sign in to GST Recon</h3>
+    <div class="authtabs">
+      <button class="atab active" id="tabGoogle" type="button">Google</button>
+      <button class="atab" id="tabEmail" type="button">Email</button>
+    </div>
+    <div id="paneGoogle">
+      <button class="btn primary big gbtn" id="googleBtn" type="button">Continue with Google</button>
+      <div class="msg" id="googleErr"></div>
+    </div>
+    <div id="paneEmail" class="hidden">
+      <div class="field" id="nameField"><label class="f" for="auName">Full name</label><input type="text" id="auName" autocomplete="name" placeholder="Your name" /></div>
+      <div class="field"><label class="f" for="auEmail">Email</label><input type="email" id="auEmail" autocomplete="email" placeholder="you@example.com" /></div>
+      <div class="field"><label class="f" for="auPass">Password</label><input type="password" id="auPass" autocomplete="current-password" placeholder="6+ characters" /></div>
+      <div class="msg" id="authErr"></div>
+      <button class="btn primary big gbtn" id="emailSubmit" type="button">Create account</button>
+      <p class="fineprint"><a href="#" id="modeToggle">Already have an account? Log in</a></p>
+    </div>
+    <p class="fineprint">Signed-in users appear in the site owner's Firebase console (name, email, sign-in date).</p>
+  </div>
+</div>
+
+<!-- ================= AI GST BOT ================= -->
+<button id="chatFab" type="button" aria-label="Open GST Assistant">💬</button>
+<div id="chatPanel" class="hidden">
+  <div class="chat-head">GST Assistant<button id="chatClose" type="button" aria-label="Close chat">×</button></div>
+  <div class="chat-msgs" id="chatMsgs">
+    <div class="cm bot">Namaste! GST ke baare me kuch bhi puchho — GSTR-1, GSTR-3B, ITC, GSTIN, e-invoice. I will answer briefly and practically.</div>
+  </div>
+  <div class="chat-in">
+    <input id="chatInput" type="text" placeholder="Type your GST question…" />
+    <button class="btn primary" id="chatSend" type="button">Send</button>
+  </div>
+</div>
 
 <script>
 "use strict";
@@ -418,7 +610,8 @@ function readFileAsGrid(file){
 /* ============================================================
    Reconciliation
    ============================================================ */
-function reconcile(regRecs, bRecs){
+function reconcile(regRecs, bRecs, L){
+  L = L || { left:"Purchase Register", right:"GSTR-2B", leftShort:"Register", rightShort:"2B" };
   var out = { matched:[], missing_in_2b:[], extra_in_2b:[], duplicates:[],
               value_mismatches:[], tax_mismatches:[], invalid_gstins:[] };
 
@@ -441,8 +634,8 @@ function reconcile(regRecs, bRecs){
     });
     return valid;
   }
-  var reg = split(regRecs, "Purchase Register");
-  var b2b = split(bRecs, "GSTR-2B");
+  var reg = split(regRecs, L.left);
+  var b2b = split(bRecs, L.right);
 
   var bMap = {};
   b2b.forEach(function(r){ bMap[r.supplier_gstin + "|" + r.invoice_number] = r; });
@@ -458,7 +651,7 @@ function reconcile(regRecs, bRecs){
     var sameDate = r._date === o._date;
     if(sameAmt && sameTax && sameDate){ out.matched.push(r); return; }
     var diffs = [];
-    if(!sameDate) diffs.push("Invoice date differs (Register: " + (r.invoice_date || "—") + " · 2B: " + (o.invoice_date || "—") + ")");
+    if(!sameDate) diffs.push("Invoice date differs (" + L.leftShort + ": " + (r.invoice_date || "—") + " · " + L.rightShort + ": " + (o.invoice_date || "—") + ")");
     if(!sameAmt) diffs.push("Taxable value differs");
     if(!sameTax) diffs.push("Tax differs");
     var pair = { supplier_gstin: r.supplier_gstin, invoice_number: r.invoice_number,
@@ -499,35 +692,35 @@ function rowCells(r){
     "</td><td class='n'>" + fmtNum(r._taxable) + "</td><td class='n'>" + fmtNum(r._cgst) + "</td><td class='n'>" +
     fmtNum(r._sgst) + "</td><td class='n'>" + fmtNum(r._igst) + "</td>";
 }
-function renderResults(res, regCount, bCount){
-  lastResult = res;
-  var summary = CAT_META.map(function(m){
+function renderResultsInto(res, regCount, bCount, cfg){
+  cfg.store.result = res;
+  var summary = cfg.meta.map(function(m){
     var tax = m.key === "value_mismatches" || m.key === "tax_mismatches" ? sumTaxable(res[m.key], "reg_taxable")
       : m.key === "invalid_gstins" ? 0 : sumTaxable(res[m.key]);
     return { label:m.label, count: res[m.key].length, taxable: tax };
   });
-  lastSummary = { rows: summary, regCount: regCount, bCount: bCount };
+  cfg.store.summary = { rows: summary, regCount: regCount, bCount: bCount };
 
-  var sg = document.getElementById("statGrid");
+  var sg = document.getElementById(cfg.statGrid);
   sg.innerHTML =
-    "<div class='stat'><div class='k'>Register rows</div><div class='v'>" + regCount + "</div><div class='a'>&nbsp;</div></div>" +
-    "<div class='stat'><div class='k'>GSTR-2B rows</div><div class='v'>" + bCount + "</div><div class='a'>&nbsp;</div></div>" +
+    "<div class='stat'><div class='k'>" + cfg.leftStat + "</div><div class='v'>" + regCount + "</div><div class='a'>&nbsp;</div></div>" +
+    "<div class='stat'><div class='k'>" + cfg.rightStat + "</div><div class='v'>" + bCount + "</div><div class='a'>&nbsp;</div></div>" +
     summary.map(function(s){
       return "<div class='stat'><div class='k'>" + esc(s.label) + "</div><div class='v'>" + s.count +
         "</div><div class='a'>Taxable " + fmtINR(s.taxable) + "</div></div>";
     }).join("");
-  document.getElementById("results").classList.add("show");
+  document.getElementById(cfg.results).classList.add("show");
 
   var stdHead = "<tr><th>GSTIN</th><th>Invoice No</th><th>Date</th><th class='n'>Taxable (₹)</th><th class='n'>CGST (₹)</th><th class='n'>SGST (₹)</th><th class='n'>IGST (₹)</th></tr>";
   var html = "";
-  CAT_META.forEach(function(m, i){
+  cfg.meta.forEach(function(m, i){
     var list = res[m.key];
     html += "<details class='cat'" + (i === 0 ? " open" : "") + "><summary><span class='pill " + m.pill + "'>" + m.pillText +
       "</span>" + m.label + "<span class='cnt'>" + list.length + " row" + (list.length === 1 ? "" : "s") + "</span></summary>";
     if(!list.length){ html += "<div class='empty-note'>No rows in this category.</div></details>"; return; }
     html += "<div class='tblwrap'><table>";
     if(m.key === "value_mismatches" || m.key === "tax_mismatches"){
-      html += "<tr><th>GSTIN</th><th>Invoice No</th><th>Register date</th><th>2B date</th><th class='n'>Reg taxable</th><th class='n'>2B taxable</th><th class='n'>Reg CGST</th><th class='n'>2B CGST</th><th class='n'>Reg SGST</th><th class='n'>2B SGST</th><th class='n'>Reg IGST</th><th class='n'>2B IGST</th><th>Difference</th></tr>";
+      html += "<tr><th>GSTIN</th><th>Invoice No</th><th>" + cfg.dateL + " date</th><th>" + cfg.dateR + " date</th><th class='n'>" + cfg.amtL + " taxable</th><th class='n'>" + cfg.amtR + " taxable</th><th class='n'>" + cfg.amtL + " CGST</th><th class='n'>" + cfg.amtR + " CGST</th><th class='n'>" + cfg.amtL + " SGST</th><th class='n'>" + cfg.amtR + " SGST</th><th class='n'>" + cfg.amtL + " IGST</th><th class='n'>" + cfg.amtR + " IGST</th><th>Difference</th></tr>";
       list.forEach(function(p){
         html += "<tr><td class='num'>" + esc(p.supplier_gstin) + "</td><td>" + esc(p.invoice_number) + "</td><td>" + esc(p.reg_date) +
           "</td><td>" + esc(p.b2b_date) + "</td><td class='n'>" + fmtNum(p.reg_taxable) + "</td><td class='n'>" + fmtNum(p.b2b_taxable) +
@@ -553,7 +746,27 @@ function renderResults(res, regCount, bCount){
     }
     html += "</table></div></details>";
   });
-  document.getElementById("catTables").innerHTML = html;
+  document.getElementById(cfg.catTables).innerHTML = html;
+}
+var CAT_META_G1 = [
+  { key:"matched",          label:"Matched",                        pill:"g", pillText:"OK" },
+  { key:"missing_in_2b",    label:"Missing in GSTR-1",              pill:"r", pillText:"In books only" },
+  { key:"extra_in_2b",      label:"Extra in GSTR-1 (not in books)", pill:"y", pillText:"In GSTR-1 only" },
+  { key:"duplicates",       label:"Duplicates",                     pill:"y", pillText:"Repeated" },
+  { key:"value_mismatches", label:"Value mismatches",               pill:"r", pillText:"Taxable differs" },
+  { key:"tax_mismatches",   label:"Tax mismatches",                 pill:"r", pillText:"Tax differs" },
+  { key:"invalid_gstins",   label:"Invalid GSTINs",                 pill:"r", pillText:"Failed check" }
+];
+var state2b = { result:null, summary:null }, stateG1 = { result:null, summary:null };
+var CFG_2B = { meta: CAT_META, store: state2b, statGrid:"statGrid", results:"results", catTables:"catTables",
+  leftStat:"Register rows", rightStat:"GSTR-2B rows", dateL:"Register", dateR:"2B", amtL:"Reg", amtR:"2B", xlL:"Register", xlR:"2B",
+  title:"GSTR-2B Reconciliation", filePrefix:"GST-Recon-2B-Report-", leftRows:"Purchase Register rows", rightRows:"GSTR-2B rows" };
+var CFG_G1 = { meta: CAT_META_G1, store: stateG1, statGrid:"statGrid1", results:"results1", catTables:"catTables1",
+  leftStat:"Sales register rows", rightStat:"GSTR-1 rows", dateL:"Books", dateR:"GSTR-1", amtL:"Books", amtR:"GSTR-1", xlL:"Books", xlR:"GSTR-1",
+  title:"GSTR-1 Reconciliation", filePrefix:"GST-Recon-GSTR1-Report-", leftRows:"Sales Register rows", rightRows:"GSTR-1 rows" };
+function renderResults(res, regCount, bCount){
+  renderResultsInto(res, regCount, bCount, CFG_2B);
+  lastResult = state2b.result; lastSummary = state2b.summary;
 }
 
 /* ---------- Excel report ---------- */
@@ -561,32 +774,41 @@ function plainRow(r){
   return { "Supplier GSTIN": r.supplier_gstin, "Invoice Number": r.invoice_number, "Invoice Date": r.invoice_date,
     "Taxable Value": r._taxable, "CGST": r._cgst, "SGST": r._sgst, "IGST": r._igst };
 }
-document.getElementById("dlBtn").addEventListener("click", function(){
-  if(!lastResult || typeof XLSX === "undefined") return;
-  var wb = XLSX.utils.book_new();
-  var sumRows = [ { "": "GST Reconciliation Summary" }, {} ];
-  sumRows.push({ "Category":"Purchase Register rows", "Count": lastSummary.regCount, "Total Taxable Value (₹)": "" });
-  sumRows.push({ "Category":"GSTR-2B rows", "Count": lastSummary.bCount, "Total Taxable Value (₹)": "" });
-  lastSummary.rows.forEach(function(s){ sumRows.push({ "Category": s.label, "Count": s.count, "Total Taxable Value (₹)": s.taxable }); });
-  XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(sumRows), "Summary");
-  XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(lastResult.matched.map(plainRow)), "Matched");
-  XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(lastResult.missing_in_2b.map(plainRow)), "Missing in 2B");
-  XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(lastResult.extra_in_2b.map(plainRow)), "Extra in 2B");
-  XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(lastResult.duplicates.map(function(r){
+function reportStamp(){
+  var d = new Date(); function p(n){ return ("0" + n).slice(-2); }
+  return d.getFullYear() + p(d.getMonth() + 1) + p(d.getDate()) + "-" + p(d.getHours()) + p(d.getMinutes());
+}
+function downloadReconReport(state, cfg){
+  if(!state.result || !state.summary || typeof XLSX === "undefined") return;
+  var res = state.result, wb = XLSX.utils.book_new();
+  var aoa = [[cfg.title + " — GST Recon"], ["Run date", new Date().toLocaleString("en-IN")], [],
+    ["Category", "Count", "Total Taxable Value (₹)"],
+    [cfg.leftRows, state.summary.regCount, ""], [cfg.rightRows, state.summary.bCount, ""]];
+  state.summary.rows.forEach(function(s){ aoa.push([s.label, s.count, s.taxable]); });
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(aoa), "Summary");
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(res.matched.map(plainRow)), "Matched");
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(res.missing_in_2b.map(plainRow)), "Missing");
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(res.extra_in_2b.map(plainRow)), "Extra");
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(res.duplicates.map(function(r){
     return { "File": r.source, "Supplier GSTIN": r.supplier_gstin, "Invoice Number": r.invoice_number, "Invoice Date": r.invoice_date, "Taxable Value": r.taxable_value, "Note": r.note };
   })), "Duplicates");
   function pairRow(p){
-    return { "Supplier GSTIN": p.supplier_gstin, "Invoice Number": p.invoice_number, "Register Date": p.reg_date, "2B Date": p.b2b_date,
-      "Register Taxable": p.reg_taxable, "2B Taxable": p.b2b_taxable, "Register CGST": p.reg_cgst, "2B CGST": p.b2b_cgst,
-      "Register SGST": p.reg_sgst, "2B SGST": p.b2b_sgst, "Register IGST": p.reg_igst, "2B IGST": p.b2b_igst, "Difference": p.difference };
+    var o = { "Supplier GSTIN": p.supplier_gstin, "Invoice Number": p.invoice_number };
+    o[cfg.xlL + " Date"] = p.reg_date; o[cfg.xlR + " Date"] = p.b2b_date;
+    o[cfg.xlL + " Taxable"] = p.reg_taxable; o[cfg.xlR + " Taxable"] = p.b2b_taxable;
+    o[cfg.xlL + " CGST"] = p.reg_cgst; o[cfg.xlR + " CGST"] = p.b2b_cgst;
+    o[cfg.xlL + " SGST"] = p.reg_sgst; o[cfg.xlR + " SGST"] = p.b2b_sgst;
+    o[cfg.xlL + " IGST"] = p.reg_igst; o[cfg.xlR + " IGST"] = p.b2b_igst;
+    o["Difference"] = p.difference; return o;
   }
-  XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(lastResult.value_mismatches.map(pairRow)), "Value Mismatches");
-  XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(lastResult.tax_mismatches.map(pairRow)), "Tax Mismatches");
-  XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(lastResult.invalid_gstins.map(function(r){
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(res.value_mismatches.map(pairRow)), "Value mismatches");
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(res.tax_mismatches.map(pairRow)), "Tax mismatches");
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(res.invalid_gstins.map(function(r){
     return { "File": r.source, "GSTIN": r.gstin, "Invoice Number": r.invoice_number, "Invoice Date": r.invoice_date, "Reason": r.reason };
   })), "Invalid GSTINs");
-  XLSX.writeFile(wb, "gst-reconciliation-report.xlsx");
-});
+  XLSX.writeFile(wb, cfg.filePrefix + reportStamp() + ".xlsx");
+}
+document.getElementById("dlBtn").addEventListener("click", function(){ downloadReconReport(state2b, CFG_2B); });
 
 /* ---------- upload wiring ---------- */
 function showMsg(el, text, kind){
@@ -726,6 +948,286 @@ document.getElementById("reForm").addEventListener("submit", function(ev){
 (function(){ var t = new Date(); var iso = t.toISOString().slice(0,10);
   document.getElementById("fDate").value = iso; document.getElementById("rDate").value = iso; })();
 renderFinance();
+
+/* ============================================================
+   Tool tabs
+   ============================================================ */
+function showTab(id){
+  var panes = document.querySelectorAll(".tabpane");
+  for(var i = 0; i < panes.length; i++) panes[i].classList.toggle("active", panes[i].id === id);
+  var btns = document.querySelectorAll(".tabbtn");
+  for(var j = 0; j < btns.length; j++) btns[j].classList.toggle("active", btns[j].getAttribute("data-tab") === id);
+}
+Array.prototype.forEach.call(document.querySelectorAll(".tabbtn"), function(b){
+  b.addEventListener("click", function(){ showTab(b.getAttribute("data-tab")); });
+});
+
+/* ============================================================
+   GSTR-1 reconciliation — same engine, second instance
+   ============================================================ */
+wireDrop("fileSales", "nameSales", "dropSales");
+wireDrop("fileG1", "nameG1", "dropG1");
+document.getElementById("dlBtn1").addEventListener("click", function(){ downloadReconReport(stateG1, CFG_G1); });
+document.getElementById("runBtn1").addEventListener("click", function(){
+  var msg = document.getElementById("toolMsg1");
+  hideMsg(msg);
+  var fL = document.getElementById("fileSales").files[0];
+  var fR = document.getElementById("fileG1").files[0];
+  if(!fL || !fR){ showMsg(msg, "Please choose both files — Sales Register and GSTR-1.", "err"); return; }
+  var btn = this; btn.disabled = true; btn.textContent = "Reconciling…";
+  Promise.all([readFileAsGrid(fL), readFileAsGrid(fR)]).then(function(grids){
+    var lRecs = rowsToRecords(grids[0], "Sales Register");
+    var rRecs = rowsToRecords(grids[1], "GSTR-1");
+    var res = reconcile(lRecs, rRecs, { left:"Sales Register", right:"GSTR-1", leftShort:"Books", rightShort:"GSTR-1" });
+    renderResultsInto(res, lRecs.length, rRecs.length, CFG_G1);
+    showMsg(msg, "Done — " + res.matched.length + " matched out of " + lRecs.length + " sales register rows. Full breakdown below.", "ok");
+    document.getElementById("results1").scrollIntoView({ behavior:"smooth", block:"start" });
+  }).catch(function(e){
+    showMsg(msg, e.message || "Something went wrong reading the files.", "err");
+  }).then(function(){ btn.disabled = false; btn.textContent = "Run reconciliation"; });
+});
+document.getElementById("sampleBtn1").addEventListener("click", function(){
+  var head = "Supplier GSTIN,Invoice No,Invoice Date,Taxable Value,CGST,SGST,IGST\n";
+  var books = head +
+    "27AAECB1234F1Z5,S-001,05/10/2026,10000,900,900,0\n" +
+    "29AAKCS5678L1ZD,S-002,07/10/2026,25000,0,0,4500\n" +
+    "27AAECB1234F1Z5,S-003,09/10/2026,5000,450,450,0\n" +
+    "27AAECB1234F1Z5,S-003,09/10/2026,5000,450,450,0\n";
+  var g1 = head +
+    "27AAECB1234F1Z5,S-001,05/10/2026,10000,900,900,0\n" +
+    "29AAKCS5678L1ZD,S-002,07/10/2026,24000,0,0,4500\n" +
+    "27AAECB1234F1Z5,S-004,11/10/2026,7500,675,675,0\n";
+  function dl(name, text){
+    var a = document.createElement("a");
+    a.href = URL.createObjectURL(new Blob([text], { type:"text/csv" }));
+    a.download = name; a.click(); setTimeout(function(){ URL.revokeObjectURL(a.href); }, 2000);
+  }
+  dl("sample-sales-register.csv", books);
+  setTimeout(function(){ dl("sample-gstr-1.csv", g1); }, 400);
+});
+
+/* ============================================================
+   GSTIN validator
+   ============================================================ */
+function checkGSTINDetail(raw){
+  var g = String(raw === null || raw === undefined ? "" : raw).trim().toUpperCase();
+  if(!g) return { gstin: g, ok:false, reason:"Blank line" };
+  if(g.length !== 15) return { gstin: g, ok:false, reason:"Must be 15 characters — got " + g.length };
+  var sc = g.slice(0, 2);
+  if(!/^\d{2}$/.test(sc) || +sc < 1 || +sc > 37) return { gstin: g, ok:false, reason:"State code '" + sc + "' is invalid — must be 01–37" };
+  if(!/^[A-Z]{5}[0-9]{4}[A-Z]$/.test(g.slice(2, 12))) return { gstin: g, ok:false, reason:"Characters 3–12 must follow the PAN pattern (5 letters, 4 digits, 1 letter)" };
+  if(!/^[0-9A-Z]$/.test(g.charAt(12))) return { gstin: g, ok:false, reason:"Character 13 (entity code) must be a digit or a letter" };
+  if(g.charAt(13) !== "Z") return { gstin: g, ok:false, reason:"Character 14 must be 'Z'" };
+  var total = 0;
+  for(var i = 0; i < 14; i++){
+    var v = GSTIN_ALPHA.indexOf(g.charAt(i));
+    if(v < 0) return { gstin: g, ok:false, reason:"Invalid character '" + g.charAt(i) + "'" };
+    var p = v * (i % 2 === 1 ? 2 : 1);
+    total += Math.floor(p / 36) + (p % 36);
+  }
+  var check = GSTIN_ALPHA.charAt((36 - (total % 36)) % 36);
+  if(g.charAt(14) !== check) return { gstin: g, ok:false, reason:"Checksum mismatch — last character should be '" + check + "'" };
+  return { gstin: g, ok:true, reason:"Valid format and checksum" };
+}
+var valRows = [];
+document.getElementById("valBtn").addEventListener("click", function(){
+  var msg = document.getElementById("valMsg");
+  hideMsg(msg);
+  var lines = document.getElementById("valInput").value.split(/\r?\n/).filter(function(s){ return s.trim() !== ""; });
+  if(!lines.length){ showMsg(msg, "Paste at least one GSTIN — one per line.", "err"); return; }
+  valRows = lines.map(checkGSTINDetail);
+  var okCount = valRows.filter(function(r){ return r.ok; }).length;
+  document.getElementById("valBody").innerHTML = valRows.map(function(r){
+    return "<tr><td class='num'>" + esc(r.gstin) + "</td><td><span class='pill " + (r.ok ? "g" : "r") + "'>" +
+      (r.ok ? "Valid" : "Invalid") + "</span></td><td>" + esc(r.reason) + "</td></tr>";
+  }).join("");
+  document.getElementById("valSummary").textContent = valRows.length + " GSTINs checked — " + okCount + " valid, " + (valRows.length - okCount) + " invalid.";
+  document.getElementById("valResults").classList.remove("hidden");
+  document.getElementById("dlValBtn").classList.remove("hidden");
+});
+document.getElementById("dlValBtn").addEventListener("click", function(){
+  if(!valRows.length || typeof XLSX === "undefined") return;
+  var wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(valRows.map(function(r){
+    return { "GSTIN": r.gstin, "Status": r.ok ? "Valid" : "Invalid", "Reason": r.reason };
+  })), "GSTIN Validation");
+  XLSX.writeFile(wb, "GSTIN-Validation-" + reportStamp() + ".xlsx");
+});
+
+/* ============================================================
+   GSTR-3B summary — estimate helper
+   ============================================================ */
+document.getElementById("b3Btn").addEventListener("click", function(){
+  function n(id){ var v = parseFloat(document.getElementById(id).value); return isNaN(v) ? 0 : v; }
+  var rows = [ ["IGST", n("b3IgstOut"), n("b3ItcIgst")], ["CGST", n("b3CgstOut"), n("b3ItcCgst")], ["SGST", n("b3SgstOut"), n("b3ItcSgst")] ];
+  var total = 0;
+  document.getElementById("b3Body").innerHTML = rows.map(function(r){
+    var net = Math.max(0, r[1] - r[2]); total += net;
+    return "<tr><td>" + r[0] + "</td><td class='n'>" + fmtNum(r[1]) + "</td><td class='n'>" + fmtNum(r[2]) + "</td><td class='n'>" + fmtNum(net) + "</td></tr>";
+  }).join("");
+  document.getElementById("b3Total").textContent = "Total net payable: " + fmtINR(total) + " · Outward taxable value: " + fmtINR(n("b3OutVal"));
+  document.getElementById("b3Result").classList.remove("hidden");
+});
+
+/* ============================================================
+   Firebase auth — Google + Email sign-in
+   ============================================================ */
+var fbAuth = null, fbUser = null;
+function authErrorText(e){
+  var c = e && e.code ? e.code : "";
+  var map = {
+    "auth/popup-blocked": "Popup blocked — allow popups and try again.",
+    "auth/unauthorized-domain": "This domain isn't approved for Google sign-in yet.",
+    "auth/operation-not-allowed": "This sign-in method isn't enabled.",
+    "auth/email-already-in-use": "Account exists — log in instead.",
+    "auth/wrong-password": "Email or password is wrong.",
+    "auth/user-not-found": "Email or password is wrong.",
+    "auth/invalid-credential": "Email or password is wrong.",
+    "auth/weak-password": "Password must be 6+ characters.",
+    "auth/network-request-failed": "Network error — check connection.",
+    "auth/invalid-email": "That email address doesn't look right."
+  };
+  return map[c] || (e && e.message) || "Something went wrong — try again.";
+}
+function renderAuthArea(){
+  var el = document.getElementById("authArea");
+  if(!fbAuth){
+    el.innerHTML = "<span class='auth-note'>Sign-in is being set up — tools work without it for now.</span>";
+  } else if(fbUser){
+    el.innerHTML = "<span class='chip'>" + esc(fbUser.displayName || fbUser.email || "Signed in") + "</span>" +
+      "<button class='btn' id='signOutBtn' type='button'>Sign out</button>";
+    document.getElementById("signOutBtn").addEventListener("click", function(){ fbAuth.signOut(); });
+  } else {
+    el.innerHTML = "<button class='btn primary' id='signInBtn' type='button'>Sign in</button>";
+    document.getElementById("signInBtn").addEventListener("click", openAuthModal);
+  }
+  document.body.classList.toggle("auth-locked", !!fbAuth && !fbUser);
+}
+function openAuthModal(){ document.getElementById("authModal").classList.remove("hidden"); }
+function closeAuthModal(){ document.getElementById("authModal").classList.add("hidden"); }
+function initFirebaseAuth(){
+  try{
+    if(typeof FIREBASE_CONFIG !== "undefined" && FIREBASE_CONFIG.apiKey && typeof firebase !== "undefined"){
+      firebase.initializeApp(FIREBASE_CONFIG);
+      fbAuth = firebase.auth();
+      fbAuth.setPersistence(firebase.auth.Auth.Persistence.LOCAL).catch(function(){});
+      fbAuth.onAuthStateChanged(function(u){ fbUser = u; renderAuthArea(); });
+    }
+  }catch(e){ fbAuth = null; }
+  renderAuthArea();
+}
+renderAuthArea();
+(function(){
+  function attempt(srcs){
+    if(typeof FIREBASE_CONFIG !== "undefined" && FIREBASE_CONFIG.apiKey){ initFirebaseAuth(); return; }
+    if(!srcs.length){ renderAuthArea(); return; }
+    var s = document.createElement("script");
+    s.src = srcs[0];
+    s.onload = function(){ attempt(srcs.slice(1)); };
+    s.onerror = function(){ attempt(srcs.slice(1)); };
+    document.head.appendChild(s);
+  }
+  attempt(["firebase-config.js", "data:application/javascript;base64,Y29uc3QgRklSRUJBU0VfQ09ORklHID0gewogIGFwaUtleTogIkFJemFTeUFrOExxcmlsYWM5dUtRc0NlcURFRkRQRlhjbGNpS1BXayIsCiAgYXV0aERvbWFpbjogImdzdC1yZWNvbi1lZTM4Ni5maXJlYmFzZWFwcC5jb20iLAogIHByb2plY3RJZDogImdzdC1yZWNvbi1lZTM4NiIsCiAgc3RvcmFnZUJ1Y2tldDogImdzdC1yZWNvbi1lZTM4Ni5maXJlYmFzZXN0b3JhZ2UuYXBwIiwKICBtZXNzYWdpbmdTZW5kZXJJZDogIjczNjMyNTgzOTQxMSIsCiAgYXBwSWQ6ICIxOjczNjMyNTgzOTQxMTp3ZWI6MWJlMmNiMDFhNjdkMGY0NmUwOTE0NiIKfTsK"]);
+})();
+
+document.getElementById("authClose").addEventListener("click", closeAuthModal);
+document.getElementById("authModal").addEventListener("click", function(ev){ if(ev.target === this) closeAuthModal(); });
+Array.prototype.forEach.call(document.querySelectorAll("[data-signin]"), function(b){
+  b.addEventListener("click", openAuthModal);
+});
+function setAuthTab(which){
+  document.getElementById("tabGoogle").classList.toggle("active", which === "google");
+  document.getElementById("tabEmail").classList.toggle("active", which === "email");
+  document.getElementById("paneGoogle").classList.toggle("hidden", which !== "google");
+  document.getElementById("paneEmail").classList.toggle("hidden", which !== "email");
+}
+document.getElementById("tabGoogle").addEventListener("click", function(){ setAuthTab("google"); });
+document.getElementById("tabEmail").addEventListener("click", function(){ setAuthTab("email"); });
+document.getElementById("googleBtn").addEventListener("click", function(){
+  var err = document.getElementById("googleErr");
+  hideMsg(err);
+  if(!fbAuth){ showMsg(err, "Sign-in is being set up — tools work without it for now.", "warn"); return; }
+  fbAuth.signInWithPopup(new firebase.auth.GoogleAuthProvider())
+    .then(function(){ closeAuthModal(); })
+    .catch(function(e){ showMsg(err, authErrorText(e), "err"); });
+});
+var emailMode = "signup";
+function setEmailMode(m){
+  emailMode = m;
+  document.getElementById("nameField").classList.toggle("hidden", m === "login");
+  document.getElementById("emailSubmit").textContent = m === "signup" ? "Create account" : "Log in";
+  document.getElementById("modeToggle").textContent = m === "signup" ? "Already have an account? Log in" : "New here? Create account";
+  hideMsg(document.getElementById("authErr"));
+}
+document.getElementById("modeToggle").addEventListener("click", function(ev){
+  ev.preventDefault();
+  setEmailMode(emailMode === "signup" ? "login" : "signup");
+});
+document.getElementById("emailSubmit").addEventListener("click", function(){
+  var err = document.getElementById("authErr");
+  hideMsg(err);
+  if(!fbAuth){ showMsg(err, "Sign-in is being set up — tools work without it for now.", "warn"); return; }
+  var email = document.getElementById("auEmail").value.trim();
+  var pass = document.getElementById("auPass").value;
+  if(!email || !pass){ showMsg(err, "Enter your email and password.", "err"); return; }
+  if(emailMode === "signup"){
+    var name = document.getElementById("auName").value.trim();
+    if(!name){ showMsg(err, "Enter your full name.", "err"); return; }
+    if(pass.length < 6){ showMsg(err, "Password must be 6+ characters.", "err"); return; }
+    fbAuth.createUserWithEmailAndPassword(email, pass).then(function(cred){
+      return cred.user.updateProfile({ displayName: name });
+    }).then(function(){ closeAuthModal(); renderAuthArea(); })
+      .catch(function(e){ showMsg(err, authErrorText(e), "err"); });
+  } else {
+    fbAuth.signInWithEmailAndPassword(email, pass)
+      .then(function(){ closeAuthModal(); })
+      .catch(function(e){ showMsg(err, authErrorText(e), "err"); });
+  }
+});
+
+/* ============================================================
+   AI GST bot — live answers via the Pollinations text API
+   ============================================================ */
+var chatBusy = false;
+function addChatMsg(text, who){
+  var box = document.getElementById("chatMsgs");
+  var d = document.createElement("div");
+  d.className = "cm " + who; d.textContent = text;
+  box.appendChild(d); box.scrollTop = box.scrollHeight;
+  return d;
+}
+function sendChat(){
+  var inp = document.getElementById("chatInput");
+  var q = inp.value.trim();
+  if(!q || chatBusy) return;
+  inp.value = "";
+  addChatMsg(q, "user");
+  chatBusy = true;
+  var typing = addChatMsg("Typing…", "bot typing");
+  var prompt = "You are a helpful GST assistant for Indian small businesses. Answer briefly and practically in simple English (Hinglish ok if user uses it).\n\nUser: " + q;
+  fetch("https://text.pollinations.ai/" + encodeURIComponent(prompt)).then(function(r){
+    if(!r.ok) throw new Error("unreachable");
+    return r.text();
+  }).then(function(t){
+    typing.parentNode && typing.parentNode.removeChild(typing);
+    addChatMsg(t && t.trim() ? t.trim() : "AI is unreachable right now — please try again in a bit.", "bot");
+  }).catch(function(){
+    typing.parentNode && typing.parentNode.removeChild(typing);
+    addChatMsg("AI is unreachable right now — please try again in a bit.", "bot");
+  }).then(function(){ chatBusy = false; });
+}
+document.getElementById("chatFab").addEventListener("click", function(){
+  var p = document.getElementById("chatPanel");
+  p.classList.toggle("hidden");
+  if(!p.classList.contains("hidden")) document.getElementById("chatInput").focus();
+});
+document.getElementById("chatClose").addEventListener("click", function(){
+  document.getElementById("chatPanel").classList.add("hidden");
+});
+document.getElementById("chatSend").addEventListener("click", sendChat);
+document.getElementById("chatInput").addEventListener("keydown", function(ev){
+  if(ev.key === "Enter"){ ev.preventDefault(); sendChat(); }
+});
 
 </script>
 </body>
