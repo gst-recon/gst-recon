@@ -262,6 +262,14 @@
   #pane-2b.demo-on .gate-overlay, #pane-g1.demo-on .gate-overlay{ display:none; }
   /* ---------- disclaimer banner ---------- */
   .disc-banner{ background:var(--warn-bg); border:1px solid var(--line); border-left:4px solid var(--warn); border-radius:8px; padding:.55rem .9rem; margin-bottom:.9rem; font-size:.92rem; font-weight:600; }
+  /* ---------- smart column-mapping panel ---------- */
+  .map-panel{ margin-top:1rem; border-left:4px solid var(--accent); }
+  .map-panel h3{ margin-top:0; }
+  .map-panel h4{ margin:.9rem 0 .4rem; font-size:1rem; }
+  .map-row{ display:flex; align-items:center; gap:.7rem; margin:.45rem 0; flex-wrap:wrap; }
+  .map-row label{ min-width:130px; font-weight:700; font-size:.92rem; }
+  .map-row .req{ color:var(--bad); }
+  .map-row select{ flex:1; min-width:200px; padding:.5rem .6rem; border:1px solid var(--line); border-radius:8px; background:var(--surface); }
 
   /* ---------- auth modal ---------- */
   .modal-back{ position:fixed; inset:0; z-index:80; background:rgba(10,15,12,.55); display:flex; align-items:center; justify-content:center; padding:1rem; }
@@ -1444,13 +1452,13 @@ function normHeader(h){
   return String(h === null || h === undefined ? "" : h).toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
 }
 var ALIASES = {
-  supplier_gstin: ["supplier gstin", "gstin", "seller gstin"],
-  invoice_number: ["invoice no", "inv no", "invoice number", "invoice"],
-  invoice_date:   ["invoice date", "inv date", "date"],
-  taxable_value:  ["taxable value", "taxable amt", "taxable amount", "taxable"],
-  cgst: ["cgst", "cgst amt", "cgst amount"],
-  sgst: ["sgst", "sgst amt", "sgst amount"],
-  igst: ["igst", "igst amt", "igst amount"]
+  supplier_gstin: ["supplergstin","gstin","sellergstin","gstnumber","gstinno","vendorgstin","suppliergst","gstno"],
+  invoice_number: ["invoiceno","invno","invoicenumber","billno","billnumber","docno","voucherno","refno","documentno","invoice"],
+  invoice_date:   ["invoicedate","invdate","invdt","billdate","docdate","voucherdate","date"],
+  taxable_value:  ["taxablevalue","taxableamt","taxableamount","assessablevalue","netamount","taxable"],
+  cgst: ["cgst","cgstamt","cgstamount","centralgst"],
+  sgst: ["sgst","sgstamt","sgstamount","stategst"],
+  igst: ["igst","igstamt","igstamount","integratedgst"]
 };
 var FIELD_LABEL = {
   supplier_gstin:"Supplier GSTIN", invoice_number:"Invoice No", invoice_date:"Invoice Date",
@@ -1458,21 +1466,83 @@ var FIELD_LABEL = {
 };
 var FIELDS = Object.keys(ALIASES);
 
-function rowsToRecords(grid, sourceName){
+function normHeaderFlat(h){
+  return String(h === null || h === undefined ? "" : h).toLowerCase().replace(/[^a-z0-9]/g, "");
+}
+
+/* Smart column mapping: exact alias hit wins, then substring fallback.
+   "date" alone only matches invoice_date when no better date header exists. */
+function smartMapHeaders(grid, sourceName, overrides){
+  overrides = overrides || {};
   if(!grid.length) throw new Error(sourceName + ": the file is empty.");
-  var header = grid[0].map(normHeader);
-  var colIdx = {}, missing = [];
+  var rawHeaders = grid[0].map(function(h){ return String(h === null || h === undefined ? "" : h).trim(); });
+  var flat = rawHeaders.map(normHeaderFlat);
+  var colIdx = {}, used = {}, mappings = [], unmapped = [];
+  function claim(f, j, how){
+    colIdx[f] = j; used[j] = true;
+    mappings.push({ field: f, header: rawHeaders[j], label: FIELD_LABEL[f], how: how });
+  }
+  // 0) manual overrides from the mapping panel
   FIELDS.forEach(function(f){
-    var idx = -1;
-    for(var j = 0; j < header.length; j++){ if(ALIASES[f].indexOf(header[j]) !== -1){ idx = j; break; } }
-    if(idx === -1) missing.push(FIELD_LABEL[f]); else colIdx[f] = idx;
+    var oi = overrides[f];
+    if(oi === undefined || oi === null || oi === "") return;
+    var j = Number(oi);
+    if(isNaN(j) || j < 0 || j >= flat.length || used[j]) return;
+    claim(f, j, "manual");
   });
-  if(missing.length) throw new Error(sourceName + ": missing required column(s): " + missing.join(", ") + ". Check the accepted column names listed above the upload boxes.");
+  // 1) exact alias hits, excluding bare "date"
+  FIELDS.forEach(function(f){
+    if(colIdx[f] !== undefined) return;
+    var aliases = ALIASES[f].filter(function(a){ return a !== "date"; });
+    for(var j = 0; j < flat.length; j++){
+      if(used[j] || !flat[j]) continue;
+      if(aliases.indexOf(flat[j]) !== -1){ claim(f, j, "exact"); break; }
+    }
+  });
+  // 2) bare "date" exact hit, only for invoice_date
+  if(colIdx["invoice_date"] === undefined){
+    for(var j = 0; j < flat.length; j++){
+      if(used[j] || !flat[j]) continue;
+      if(flat[j] === "date"){ claim("invoice_date", j, "exact"); break; }
+    }
+  }
+  // 3) substring fallback — longest alias first, "date" excluded
+  FIELDS.forEach(function(f){
+    if(colIdx[f] !== undefined) return;
+    var aliases = ALIASES[f].filter(function(a){ return a !== "date" && a.length >= 4; })
+      .sort(function(a, b){ return b.length - a.length; });
+    for(var a = 0; a < aliases.length; a++){
+      var hit = -1;
+      for(var j = 0; j < flat.length; j++){
+        if(used[j] || !flat[j]) continue;
+        if(flat[j].indexOf(aliases[a]) !== -1){ hit = j; break; }
+      }
+      if(hit !== -1){ claim(f, hit, "fuzzy"); break; }
+    }
+  });
+  FIELDS.forEach(function(f){ if(colIdx[f] === undefined) unmapped.push(f); });
+  return { colIdx: colIdx, mappings: mappings, unmapped: unmapped, headers: rawHeaders, flat: flat, used: used, sourceName: sourceName };
+}
+
+/* Best-guess header index for the mapping panel dropdowns. */
+function guessHeaderFor(f, flat, used){
+  var aliases = ALIASES[f].filter(function(a){ return a !== "date"; })
+    .sort(function(a, b){ return b.length - a.length; });
+  for(var a = 0; a < aliases.length; a++){
+    for(var j = 0; j < flat.length; j++){
+      if(used[j] || !flat[j]) continue;
+      if(flat[j].indexOf(aliases[a]) !== -1) return j;
+    }
+  }
+  return -1;
+}
+
+function recordsFromMap(grid, map, sourceName){
   var recs = [];
   for(var r = 1; r < grid.length; r++){
     var row = grid[r], rec = { _source: sourceName };
     FIELDS.forEach(function(f){
-      var cell = row[colIdx[f]];
+      var cell = row[map.colIdx[f]];
       rec[f] = cell === null || cell === undefined ? "" : String(cell).trim();
     });
     rec._taxable = parseAmount(rec.taxable_value);
@@ -1485,6 +1555,89 @@ function rowsToRecords(grid, sourceName){
     recs.push(rec);
   }
   return recs;
+}
+
+/* Kept for the demo mode (exact headers) — same signature, same hard error. */
+function rowsToRecords(grid, sourceName){
+  var map = smartMapHeaders(grid, sourceName, {});
+  if(map.unmapped.length){
+    var missing = map.unmapped.map(function(f){ return FIELD_LABEL[f]; });
+    throw new Error(sourceName + ": missing required column(s): " + missing.join(", ") + ". Check the accepted column names listed above the upload boxes.");
+  }
+  return recordsFromMap(grid, map, sourceName);
+}
+
+/* "Auto-mapped: 'Bill No' → Invoice No, ..." — only lists non-canonical headers. */
+function autoMapNote(maps){
+  var parts = [];
+  maps.forEach(function(m){
+    m.mappings.forEach(function(x){
+      if(normHeaderFlat(x.header) !== normHeaderFlat(x.label)){
+        parts.push("'" + x.header + "' \u2192 " + x.label);
+      }
+    });
+  });
+  return parts.length ? " \uD83D\uDD0D Auto-mapped: " + parts.join(", ") + "." : "";
+}
+
+function escHtml(s){
+  return String(s).replace(/[&<>"']/g, function(c){
+    return { "&":"&amp;", "<":"&lt;", ">":"&gt;", '"':"&quot;", "'":"&#39;" }[c];
+  });
+}
+
+function hideMapPanel(paneId){
+  var old = document.getElementById(paneId + "-mappanel");
+  if(old && old.parentNode) old.parentNode.removeChild(old);
+}
+
+/* Interactive column-mapping panel. fileMaps: [{map, grid, name}].
+   onContinue(overrides) — overrides = [{field:headerIdx}, {field:headerIdx}]. */
+function showMappingPanel(paneId, msgEl, fileMaps, onContinue){
+  hideMapPanel(paneId);
+  var div = document.createElement("div");
+  div.className = "card map-panel";
+  div.id = paneId + "-mappanel";
+  var html = "<h3>\uD83D\uDD0D Column matching — thoda sa adjust karo</h3>" +
+    "<p class=\"sub\">Tumhari file ke column naam thode alag hain — koi baat nahi. " +
+    "Neeche har missing field ke liye sahi column chuno aur Continue dabao, system aage khud sambhal lega.</p>";
+  fileMaps.forEach(function(fm, fi){
+    if(!fm.map.unmapped.length) return;
+    html += "<h4>\uD83D\uDCC4 " + escHtml(fm.name) + "</h4>";
+    fm.map.unmapped.forEach(function(f){
+      var guess = guessHeaderFor(f, fm.map.flat, fm.map.used);
+      html += "<div class=\"map-row\"><label>" + escHtml(FIELD_LABEL[f]) + " <span class=\"req\">*</span></label>" +
+        "<select data-fi=\"" + fi + "\" data-field=\"" + f + "\">" +
+        "<option value=\"\">\u2014 column chuno \u2014</option>";
+      fm.map.headers.forEach(function(h, j){
+        var sel = (j === guess) ? " selected" : "";
+        var label = h === "" ? "(blank column " + (j + 1) + ")" : h;
+        html += "<option value=\"" + j + "\"" + sel + ">" + escHtml(label) + "</option>";
+      });
+      html += "</select></div>";
+    });
+  });
+  html += "<p class=\"cols-note\">Accepted names — GSTIN: Supplier GSTIN, GSTIN, Seller GSTIN · " +
+    "Invoice: Invoice No, Inv No, Bill No · Date: Invoice Date, Bill Date · " +
+    "Taxable: Taxable Value, Taxable Amt · Tax: CGST, SGST, IGST.</p>";
+  html += "<div class=\"runrow\"><button class=\"btn primary\" type=\"button\" id=\"" + paneId + "-mapgo\">Continue \u2192</button></div>";
+  div.innerHTML = html;
+  msgEl.parentNode.insertBefore(div, msgEl.nextSibling);
+  document.getElementById(paneId + "-mapgo").addEventListener("click", function(){
+    var overrides = [{}, {}], ok = true, seen = [{}, {}];
+    var sels = div.querySelectorAll("select[data-field]");
+    for(var i = 0; i < sels.length; i++){
+      var s = sels[i], fi = Number(s.getAttribute("data-fi")), f = s.getAttribute("data-field");
+      s.style.borderColor = "";
+      if(s.value === ""){ ok = false; s.style.borderColor = "var(--bad)"; continue; }
+      if(seen[fi][s.value]){ ok = false; s.style.borderColor = "var(--bad)"; continue; }
+      seen[fi][s.value] = true;
+      overrides[fi][f] = Number(s.value);
+    }
+    if(!ok){ showMsg(msgEl, "Har missing field ke liye alag column chuno, phir Continue dabao.", "err"); return; }
+    onContinue(overrides);
+  });
+  div.scrollIntoView({ behavior:"smooth", block:"start" });
 }
 
 function readFileAsGrid(file){
@@ -1759,25 +1912,42 @@ function wireDrop(inputId, nameId, dropId){
 wireDrop("fileReg", "nameReg", "dropReg");
 wireDrop("file2b", "name2b", "drop2b");
 
-document.getElementById("runBtn").addEventListener("click", function(){
+function run2B(overrides){
+  overrides = overrides || [{}, {}];
   var msg = document.getElementById("toolMsg");
-  hideMsg(msg);
+  hideMsg(msg); hideMapPanel("pane-2b");
   var fReg = document.getElementById("fileReg").files[0];
   var f2b = document.getElementById("file2b").files[0];
   if(!fReg || !f2b){ showMsg(msg, "Please choose both files — Purchase Register and GSTR-2B.", "err"); return; }
-  var btn = this; btn.disabled = true; btn.textContent = "Reconciling…";
+  var btn = document.getElementById("runBtn"); btn.disabled = true; btn.textContent = "Reconciling…";
   Promise.all([readFileAsGrid(fReg), readFileAsGrid(f2b)]).then(function(grids){
-    var regRecs = rowsToRecords(grids[0], "Purchase Register");
-    var bRecs = rowsToRecords(grids[1], "GSTR-2B");
+    var maps;
+    try{
+      maps = [
+        { map: smartMapHeaders(grids[0], "Purchase Register", overrides[0]), grid: grids[0], name: "Purchase Register" },
+        { map: smartMapHeaders(grids[1], "GSTR-2B", overrides[1]), grid: grids[1], name: "GSTR-2B" }
+      ];
+    }catch(e){
+      showMsg(msg, e.message || "Something went wrong reading the files.", "err");
+      return;
+    }
+    if(maps[0].map.unmapped.length || maps[1].map.unmapped.length){
+      showMappingPanel("pane-2b", msg, maps, function(no){ run2B(no); });
+      showMsg(msg, "🔍 Kuch columns auto-match nahi hue — neeche panel me sahi column chuno aur Continue dabao.", "warn");
+      return;
+    }
+    var regRecs = recordsFromMap(grids[0], maps[0].map, "Purchase Register");
+    var bRecs = recordsFromMap(grids[1], maps[1].map, "GSTR-2B");
     var res = reconcile(regRecs, bRecs);
     renderResults(res, regRecs.length, bRecs.length);
     saveReconHistory("2B", fReg.name, f2b.name, res);
-    showMsg(msg, "Done — " + res.matched.length + " matched out of " + regRecs.length + " register rows. Full breakdown below.", "ok");
+    showMsg(msg, "Done — " + res.matched.length + " matched out of " + regRecs.length + " register rows. Full breakdown below." + autoMapNote([maps[0].map, maps[1].map]), "ok");
     document.getElementById("results").scrollIntoView({ behavior:"smooth", block:"start" });
   }).catch(function(e){
     showMsg(msg, e.message || "Something went wrong reading the files.", "err");
   }).then(function(){ btn.disabled = false; btn.textContent = "Run reconciliation"; });
-});
+}
+document.getElementById("runBtn").addEventListener("click", function(){ run2B(); });
 
 /* ============================================================
    Demo mode — no sign-in. Built-in sample data, reuses the SAME
@@ -1955,25 +2125,42 @@ Array.prototype.forEach.call(document.querySelectorAll(".tabbtn"), function(b){
 wireDrop("fileSales", "nameSales", "dropSales");
 wireDrop("fileG1", "nameG1", "dropG1");
 document.getElementById("dlBtn1").addEventListener("click", function(){ downloadReconReport(stateG1, CFG_G1); });
-document.getElementById("runBtn1").addEventListener("click", function(){
+function runG1(overrides){
+  overrides = overrides || [{}, {}];
   var msg = document.getElementById("toolMsg1");
-  hideMsg(msg);
+  hideMsg(msg); hideMapPanel("pane-g1");
   var fL = document.getElementById("fileSales").files[0];
   var fR = document.getElementById("fileG1").files[0];
   if(!fL || !fR){ showMsg(msg, "Please choose both files — Sales Register and GSTR-1.", "err"); return; }
-  var btn = this; btn.disabled = true; btn.textContent = "Reconciling…";
+  var btn = document.getElementById("runBtn1"); btn.disabled = true; btn.textContent = "Reconciling…";
   Promise.all([readFileAsGrid(fL), readFileAsGrid(fR)]).then(function(grids){
-    var lRecs = rowsToRecords(grids[0], "Sales Register");
-    var rRecs = rowsToRecords(grids[1], "GSTR-1");
+    var maps;
+    try{
+      maps = [
+        { map: smartMapHeaders(grids[0], "Sales Register", overrides[0]), grid: grids[0], name: "Sales Register" },
+        { map: smartMapHeaders(grids[1], "GSTR-1", overrides[1]), grid: grids[1], name: "GSTR-1" }
+      ];
+    }catch(e){
+      showMsg(msg, e.message || "Something went wrong reading the files.", "err");
+      return;
+    }
+    if(maps[0].map.unmapped.length || maps[1].map.unmapped.length){
+      showMappingPanel("pane-g1", msg, maps, function(no){ runG1(no); });
+      showMsg(msg, "🔍 Kuch columns auto-match nahi hue — neeche panel me sahi column chuno aur Continue dabao.", "warn");
+      return;
+    }
+    var lRecs = recordsFromMap(grids[0], maps[0].map, "Sales Register");
+    var rRecs = recordsFromMap(grids[1], maps[1].map, "GSTR-1");
     var res = reconcile(lRecs, rRecs, { left:"Sales Register", right:"GSTR-1", leftShort:"Books", rightShort:"GSTR-1" });
     renderResultsInto(res, lRecs.length, rRecs.length, CFG_G1);
     saveReconHistory("GSTR-1", fL.name, fR.name, res);
-    showMsg(msg, "Done — " + res.matched.length + " matched out of " + lRecs.length + " sales register rows. Full breakdown below.", "ok");
+    showMsg(msg, "Done — " + res.matched.length + " matched out of " + lRecs.length + " sales register rows. Full breakdown below." + autoMapNote([maps[0].map, maps[1].map]), "ok");
     document.getElementById("results1").scrollIntoView({ behavior:"smooth", block:"start" });
   }).catch(function(e){
     showMsg(msg, e.message || "Something went wrong reading the files.", "err");
   }).then(function(){ btn.disabled = false; btn.textContent = "Run reconciliation"; });
-});
+}
+document.getElementById("runBtn1").addEventListener("click", function(){ runG1(); });
 document.getElementById("sampleBtn1").addEventListener("click", function(){
   var head = "Supplier GSTIN,Invoice No,Invoice Date,Taxable Value,CGST,SGST,IGST\n";
   var books = head +
@@ -2000,25 +2187,42 @@ document.getElementById("sampleBtn1").addEventListener("click", function(){
 wireDrop("fileVendorBooks", "nameVendorBooks", "dropVendorBooks");
 wireDrop("fileVendorStmt", "nameVendorStmt", "dropVendorStmt");
 document.getElementById("dlBtnVendor").addEventListener("click", function(){ downloadReconReport(stateVendor, CFG_VENDOR); });
-document.getElementById("runBtnVendor").addEventListener("click", function(){
+function runVendor(overrides){
+  overrides = overrides || [{}, {}];
   var msg = document.getElementById("toolMsgVendor");
-  hideMsg(msg);
+  hideMsg(msg); hideMapPanel("pane-vendor");
   var fL = document.getElementById("fileVendorBooks").files[0];
   var fR = document.getElementById("fileVendorStmt").files[0];
   if(!fL || !fR){ showMsg(msg, "Please choose both files — Bills in Your Books (Payables) and Vendor Statement.", "err"); return; }
-  var btn = this; btn.disabled = true; btn.textContent = "Reconciling…";
+  var btn = document.getElementById("runBtnVendor"); btn.disabled = true; btn.textContent = "Reconciling…";
   Promise.all([readFileAsGrid(fL), readFileAsGrid(fR)]).then(function(grids){
-    var lRecs = rowsToRecords(grids[0], "Bills in Your Books");
-    var rRecs = rowsToRecords(grids[1], "Vendor Statement");
+    var maps;
+    try{
+      maps = [
+        { map: smartMapHeaders(grids[0], "Bills in Your Books", overrides[0]), grid: grids[0], name: "Bills in Your Books" },
+        { map: smartMapHeaders(grids[1], "Vendor Statement", overrides[1]), grid: grids[1], name: "Vendor Statement" }
+      ];
+    }catch(e){
+      showMsg(msg, e.message || "Something went wrong reading the files.", "err");
+      return;
+    }
+    if(maps[0].map.unmapped.length || maps[1].map.unmapped.length){
+      showMappingPanel("pane-vendor", msg, maps, function(no){ runVendor(no); });
+      showMsg(msg, "🔍 Kuch columns auto-match nahi hue — neeche panel me sahi column chuno aur Continue dabao.", "warn");
+      return;
+    }
+    var lRecs = recordsFromMap(grids[0], maps[0].map, "Bills in Your Books");
+    var rRecs = recordsFromMap(grids[1], maps[1].map, "Vendor Statement");
     var res = reconcile(lRecs, rRecs, { left:"Bills in Your Books", right:"Vendor Statement", leftShort:"Books", rightShort:"Vendor" });
     renderResultsInto(res, lRecs.length, rRecs.length, CFG_VENDOR);
     saveReconHistory("Vendor", fL.name, fR.name, res);
-    showMsg(msg, "Done — " + res.matched.length + " matched out of " + lRecs.length + " bills in your books. Full breakdown below.", "ok");
+    showMsg(msg, "Done — " + res.matched.length + " matched out of " + lRecs.length + " bills in your books. Full breakdown below." + autoMapNote([maps[0].map, maps[1].map]), "ok");
     document.getElementById("resultsVendor").scrollIntoView({ behavior:"smooth", block:"start" });
   }).catch(function(e){
     showMsg(msg, e.message || "Something went wrong reading the files.", "err");
   }).then(function(){ btn.disabled = false; btn.textContent = "Run reconciliation"; });
-});
+}
+document.getElementById("runBtnVendor").addEventListener("click", function(){ runVendor(); });
 document.getElementById("sampleBtnVendor").addEventListener("click", function(){
   var head = "Supplier GSTIN,Invoice No,Invoice Date,Taxable Value,CGST,SGST,IGST\n";
   var books = head +
@@ -2045,25 +2249,42 @@ document.getElementById("sampleBtnVendor").addEventListener("click", function(){
 wireDrop("fileCustBooks", "nameCustBooks", "dropCustBooks");
 wireDrop("fileCustStmt", "nameCustStmt", "dropCustStmt");
 document.getElementById("dlBtnCust").addEventListener("click", function(){ downloadReconReport(stateCust, CFG_CUST); });
-document.getElementById("runBtnCust").addEventListener("click", function(){
+function runCust(overrides){
+  overrides = overrides || [{}, {}];
   var msg = document.getElementById("toolMsgCust");
-  hideMsg(msg);
+  hideMsg(msg); hideMapPanel("pane-customer");
   var fL = document.getElementById("fileCustBooks").files[0];
   var fR = document.getElementById("fileCustStmt").files[0];
   if(!fL || !fR){ showMsg(msg, "Please choose both files — Invoices in Your Books (Receivables) and Customer Statement / Payments.", "err"); return; }
-  var btn = this; btn.disabled = true; btn.textContent = "Reconciling…";
+  var btn = document.getElementById("runBtnCust"); btn.disabled = true; btn.textContent = "Reconciling…";
   Promise.all([readFileAsGrid(fL), readFileAsGrid(fR)]).then(function(grids){
-    var lRecs = rowsToRecords(grids[0], "Invoices in Your Books");
-    var rRecs = rowsToRecords(grids[1], "Customer Statement");
+    var maps;
+    try{
+      maps = [
+        { map: smartMapHeaders(grids[0], "Invoices in Your Books", overrides[0]), grid: grids[0], name: "Invoices in Your Books" },
+        { map: smartMapHeaders(grids[1], "Customer Statement", overrides[1]), grid: grids[1], name: "Customer Statement" }
+      ];
+    }catch(e){
+      showMsg(msg, e.message || "Something went wrong reading the files.", "err");
+      return;
+    }
+    if(maps[0].map.unmapped.length || maps[1].map.unmapped.length){
+      showMappingPanel("pane-customer", msg, maps, function(no){ runCust(no); });
+      showMsg(msg, "🔍 Kuch columns auto-match nahi hue — neeche panel me sahi column chuno aur Continue dabao.", "warn");
+      return;
+    }
+    var lRecs = recordsFromMap(grids[0], maps[0].map, "Invoices in Your Books");
+    var rRecs = recordsFromMap(grids[1], maps[1].map, "Customer Statement");
     var res = reconcile(lRecs, rRecs, { left:"Invoices in Your Books", right:"Customer Statement", leftShort:"Books", rightShort:"Customer" });
     renderResultsInto(res, lRecs.length, rRecs.length, CFG_CUST);
     saveReconHistory("Customer", fL.name, fR.name, res);
-    showMsg(msg, "Done — " + res.matched.length + " matched out of " + lRecs.length + " invoices in your books. Full breakdown below.", "ok");
+    showMsg(msg, "Done — " + res.matched.length + " matched out of " + lRecs.length + " invoices in your books. Full breakdown below." + autoMapNote([maps[0].map, maps[1].map]), "ok");
     document.getElementById("resultsCust").scrollIntoView({ behavior:"smooth", block:"start" });
   }).catch(function(e){
     showMsg(msg, e.message || "Something went wrong reading the files.", "err");
   }).then(function(){ btn.disabled = false; btn.textContent = "Run reconciliation"; });
-});
+}
+document.getElementById("runBtnCust").addEventListener("click", function(){ runCust(); });
 document.getElementById("sampleBtnCust").addEventListener("click", function(){
   var head = "Supplier GSTIN,Invoice No,Invoice Date,Taxable Value,CGST,SGST,IGST\n";
   var books = head +
@@ -2375,23 +2596,65 @@ function copyDraftText(text, btn){
     navigator.clipboard.writeText(text).then(done).catch(fallback);
   } else fallback();
 }
-/* One request with a 20s timeout; on any failure, retry once. */
+/* Instant local FAQ answers — no network, <100ms. English + Hinglish keywords. */
+var CHAT_FAQ = [
+  { k:["due date","last date","deadline"],
+    a:"GST returns ki due dates **GST Utilities** tab ke calendar me hain — month-wise sab dates wahin milengi. Galat date na bata dun isliye yahan exact date nahi likh raha; calendar dekho ya apne CA se confirm karo." },
+  { k:["gstr-2b","gstr2b","2b"],
+    a:"**GSTR-2B** GST portal ka auto-generated statement hai — tumhare suppliers ne jo sales file ki, uska purchase summary. **2B Reconciliation** tab me apna Purchase Register aur 2B file upload karo — kaunsa ITC match/mismatch hai, turant pata chal jayega." },
+  { k:["gstr-1","gstr1"],
+    a:"**GSTR-1** tumhari sales ka return hai — jo invoices tumne customers ko diye. **GSTR-1 Reconciliation** tab me apna Sales Register aur GSTR-1 file milao — jo sale book ki par file nahi hui, ya portal me hai par books me nahi, sab dikhega." },
+  { k:["gstr-3b","gstr3b","3b"],
+    a:"**GSTR-3B** summary return hai jisme har mahine tax pay hota hai. Is site ka **GSTR-3B Summary** tab ek estimate helper hai — outward tax minus ITC se net payable nikalta hai. Ye filing nahi karta; file karne se pehle CA se verify karo." },
+  { k:["itc","input tax","input credit"],
+    a:"**ITC (Input Tax Credit)** wo GST hai jo tumne purchases par pay kiya aur apne output tax se adjust kar sakte ho. 2B me jo ITC dikhta hai wahi claim karo — isiliye 2B matching zaroori hai." },
+  { k:["gstin","validator"],
+    a:"**GSTIN check** ke liye upar wala **🔍 GSTIN / PAN Search** use karo — bina sign-in ke state, PAN number, holder type aur check digit verify ho jata hai." },
+  { k:["vendor master","vendor"],
+    a:"**Vendor Master** tumhari apni vendor database hai — GSTIN, naam, trade name, address ek baar save karo, dobara search par turant details. 100% free, koi API key ya limit nahi. Data isi browser me rehta hai." },
+  { k:["sign in","signin","login","log in","account"],
+    a:"Tools use karne ke liye **free account** chahiye — Google se sign-in (10 second) ya naam/email/password se. Sirf 🔍 GSTIN search aur 🎯 demo bina sign-in ke chalte hain." },
+  { k:["upload","csv","excel","column","format"],
+    a:"Har reconciliation tab me **2 files** upload hoti hain — .csv ya .xlsx, 10 MB tak. Column naam flexible hain (Bill No, GST Number jaise naam bhi chalenge) — system khud match kar leta hai, aur na mile to panel me chunne ko deta hai." },
+  { k:["demo","bina sign","without sign"],
+    a:"Bina sign-in try karna hai? **2B Reconciliation** ya **GSTR-1** tab me **🎯 Try demo — no sign-in** dabao — sample data par asli matching chalegi, koi account nahi chahiye." },
+  { k:["free","price","cost","paisa","kitne ka"],
+    a:"Haan, **100% free** hai — koi price, koi limit nahi. Bas tools ke liye free sign-in chahiye." },
+  { k:["data","server","privacy","safe","secure"],
+    a:"Tumhara data **kahin upload nahi hota** — files isi browser me read aur match hoti hain. History bhi isi browser ke local storage me rehti hai." }
+];
+function chatLocalAnswer(q){
+  var s = String(q || "").toLowerCase();
+  for(var i = 0; i < CHAT_FAQ.length; i++){
+    var ks = CHAT_FAQ[i].k;
+    for(var j = 0; j < ks.length; j++){
+      if(s.indexOf(ks[j]) !== -1) return CHAT_FAQ[i].a;
+    }
+  }
+  return "";
+}
+/* AI fallback: local FAQ miss → Pollinations, 8s timeout, 1 retry per model,
+   model fallback openai-fast → openai. */
 function askBot(q){
-  var url = "https://text.pollinations.ai/" + encodeURIComponent(CHAT_SYS + "\n\nUser: " + q) + "?model=openai-fast";
-  function attempt(n){
+  var local = chatLocalAnswer(q);
+  if(local) return Promise.resolve(local);
+  var models = ["openai-fast", "openai"];
+  function attempt(m, retry){
+    var url = "https://text.pollinations.ai/" + encodeURIComponent(CHAT_SYS + "\n\nUser: " + q) + "?model=" + models[m];
     var ctrl = new AbortController();
-    var timer = setTimeout(function(){ ctrl.abort(); }, 20000);
+    var timer = setTimeout(function(){ ctrl.abort(); }, 8000);
     return fetch(url, { signal: ctrl.signal }).then(function(r){
       clearTimeout(timer);
       if(!r.ok) throw new Error("unreachable");
       return r.text();
     }).catch(function(err){
       clearTimeout(timer);
-      if(n < 1) return attempt(n + 1);
+      if(retry < 1) return attempt(m, retry + 1);
+      if(m + 1 < models.length) return attempt(m + 1, 0);
       throw err;
     });
   }
-  return attempt(0);
+  return attempt(0, 0);
 }
 function sendChat(preset){
   var inp = document.getElementById("chatInput");
@@ -2405,14 +2668,14 @@ function sendChat(preset){
     if(typing.parentNode) typing.parentNode.removeChild(typing);
     var reply = t && t.trim() ? t.trim() : "";
     if(!reply){
-      addChatMsg("AI is unreachable right now — please try again in a bit.", "bot", { plain: true });
+      addChatMsg("AI se connect nahi ho paya — thodi der me phir try karo.", "bot", { plain: true });
       return;
     }
     var isDraft = askedDraft || /subject\s*:/i.test(reply);
     addChatMsg(reply, "bot", { draft: isDraft });
   }).catch(function(){
     if(typing.parentNode) typing.parentNode.removeChild(typing);
-    addChatMsg("AI is unreachable right now — please try again in a bit.", "bot", { plain: true });
+    addChatMsg("AI se connect nahi ho paya — thodi der me phir try karo.", "bot", { plain: true });
   });
   inp.focus();
 }
