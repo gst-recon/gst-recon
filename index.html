@@ -255,6 +255,13 @@
   .gate-box p{ margin:0 0 .9rem; font-weight:600; }
   .results-box{ display:none; margin-top:1.6rem; }
   .results-box.show{ display:block; }
+  /* ---------- demo mode (no sign-in) ---------- */
+  .demo-strip{ display:flex; align-items:center; gap:.8rem; flex-wrap:wrap; background:var(--accent-soft); border:1px solid var(--line); border-radius:12px; padding:.8rem 1rem; margin:0 0 1rem; }
+  .demo-strip p{ margin:0; font-weight:600; }
+  .demo-badge{ display:inline-block; background:#e8f0fe; border:1px dashed var(--accent); color:var(--accent); font-weight:700; font-size:.85rem; border-radius:999px; padding:.3rem .9rem; margin-bottom:.9rem; }
+  #pane-2b.demo-on .gate-overlay, #pane-g1.demo-on .gate-overlay{ display:none; }
+  /* ---------- disclaimer banner ---------- */
+  .disc-banner{ background:var(--warn-bg); border:1px solid var(--line); border-left:4px solid var(--warn); border-radius:8px; padding:.55rem .9rem; margin-bottom:.9rem; font-size:.92rem; font-weight:600; }
 
   /* ---------- auth modal ---------- */
   .modal-back{ position:fixed; inset:0; z-index:80; background:rgba(10,15,12,.55); display:flex; align-items:center; justify-content:center; padding:1rem; }
@@ -547,6 +554,10 @@ gtag('config', 'G-2BDHHZ7P2N');
     <h2>Reconcile Purchase Register with GSTR-2B</h2>
     <p class="sub">CSV or Excel (.xlsx), up to 10 MB each. Both files need these columns (names are matched flexibly): Supplier GSTIN, Invoice No, Invoice Date, Taxable Value, CGST, SGST, IGST.</p>
 
+    <div class="demo-strip">
+      <p>👀 Pehle try karke dekho — bina sign-in, sample data par:</p>
+      <button class="btn" id="demoBtn2b" type="button">🎯 Try demo — no sign-in</button>
+    </div>
     <div class="gatewrap">
     <div class="card">
       <div class="grid2">
@@ -588,6 +599,10 @@ gtag('config', 'G-2BDHHZ7P2N');
     <h2>Reconcile Sales Register with GSTR-1</h2>
     <p class="sub">CSV or Excel (.xlsx), up to 10 MB each. Same columns as the 2B tool (names are matched flexibly): GSTIN, Invoice No, Invoice Date, Taxable Value, CGST, SGST, IGST. Finds sales you booked but never filed, entries sitting in GSTR-1 that are not in your books, duplicates, mismatches and invalid GSTINs.</p>
 
+    <div class="demo-strip">
+      <p>👀 Pehle try karke dekho — bina sign-in, sample data par:</p>
+      <button class="btn" id="demoBtnG1" type="button">🎯 Try demo — no sign-in</button>
+    </div>
     <div class="gatewrap">
     <div class="card">
       <div class="grid2">
@@ -1595,6 +1610,7 @@ function renderResultsInto(res, regCount, bCount, cfg){
 
   var sg = document.getElementById(cfg.statGrid);
   sg.innerHTML =
+    "<div class='disc-banner'>\u26a0\ufe0f Ye tool helper hai \u2014 filing se pehle apne CA se verify karo.</div>" +
     "<div class='stat'><div class='k'>" + cfg.leftStat + "</div><div class='v'>" + regCount + "</div><div class='a'>&nbsp;</div></div>" +
     "<div class='stat'><div class='k'>" + cfg.rightStat + "</div><div class='v'>" + bCount + "</div><div class='a'>&nbsp;</div></div>" +
     summary.map(function(s){
@@ -1762,6 +1778,60 @@ document.getElementById("runBtn").addEventListener("click", function(){
     showMsg(msg, e.message || "Something went wrong reading the files.", "err");
   }).then(function(){ btn.disabled = false; btn.textContent = "Run reconciliation"; });
 });
+
+/* ============================================================
+   Demo mode — no sign-in. Built-in sample data, reuses the SAME
+   reconcile() engine as the upload flow (no duplicated logic).
+   Never writes recon history, never touches Firestore/localStorage
+   user data, never opens the sign-in modal.
+   ============================================================ */
+var DEMO_HEAD = ["Supplier GSTIN","Invoice No","Invoice Date","Taxable Value","CGST","SGST","IGST"];
+var DEMO_PR = [
+  ["27AAPCS1234F1ZD","INV-1001","05/10/2026","50000","4500","4500","0"],
+  ["27AABCT5678E1Z4","INV-1002","08/10/2026","25000","2250","2250","0"],
+  ["27AADCP9012F1ZK","INV-1003","12/10/2026","120000","10800","10800","0"],
+  ["27AAKCS3456G1Z4","INV-1004","15/10/2026","18500","1665","1665","0"],
+  ["27AAHCT7890H1ZQ","INV-1005","18/10/2026","75000","0","0","13500"],
+  ["27AALPM2345J1ZH","INV-1006","22/10/2026","32000","2880","2880","0"],
+  ["27AABCS6789K1ZM","INV-1007","25/10/2026","45000","4050","4050","0"],
+  ["27AAQRT1234L1Z3","INV-1008","28/10/2026","60000","5400","5400","0"]
+];
+var DEMO_2B = [
+  ["27AAPCS1234F1ZD","INV-1001","05/10/2026","50000","4500","4500","0"],
+  ["27AABCT5678E1Z4","INV-1002","08/10/2026","25000","2250","2250","0"],
+  ["27AADCP9012F1ZK","INV-1003","12/10/2026","120000","10800","10800","0"],
+  ["27AAKCS3456G1Z4","INV-1004","15/10/2026","18500","1665","1665","0"],
+  ["27AAHCT7890H1ZQ","INV-1005","18/10/2026","75000","0","0","13500"],
+  ["27AALPM2345J1ZH","INV-1006","22/10/2026","32000","2880","2880","0"],
+  ["27AAQRT1234L1Z3","INV-1008","28/10/2026","58500","5400","5400","0"]
+];
+function runDemo(kind){
+  var is2b = kind === "2b";
+  var cfg = is2b ? CFG_2B : CFG_G1;
+  var msg = document.getElementById(is2b ? "toolMsg" : "toolMsg1");
+  var pane = document.getElementById(is2b ? "pane-2b" : "pane-g1");
+  hideMsg(msg);
+  try{
+    var regRecs = rowsToRecords([DEMO_HEAD].concat(DEMO_PR), "Demo " + (is2b ? "Purchase Register" : "Sales Register"));
+    var bRecs = rowsToRecords([DEMO_HEAD].concat(DEMO_2B), "Demo " + (is2b ? "GSTR-2B" : "GSTR-1"));
+    var res = is2b ? reconcile(regRecs, bRecs)
+      : reconcile(regRecs, bRecs, { left:"Sales Register", right:"GSTR-1", leftShort:"Books", rightShort:"GSTR-1" });
+    renderResultsInto(res, regRecs.length, bRecs.length, cfg);
+    var resBox = document.getElementById(cfg.results);
+    var old = resBox.querySelector(".demo-badge"); if(old) old.remove();
+    resBox.insertAdjacentHTML("afterbegin",
+      "<div class='demo-badge'>🎯 <strong>Demo data</strong> — sample invoices · sign in to reconcile your own files</div>");
+    pane.classList.add("demo-on");
+    showMsg(msg, "Demo run \u2014 " + res.matched.length + " matched out of " + regRecs.length +
+      " register rows (" + res.missing_in_2b.length + " missing, " +
+      res.value_mismatches.length + " value mismatch). Full breakdown below.", "ok");
+    document.getElementById(is2b ? "results" : "results1").scrollIntoView({ behavior:"smooth", block:"start" });
+  }catch(e){
+    showMsg(msg, e.message || "Demo could not run.", "err");
+  }
+}
+document.getElementById("demoBtn2b").addEventListener("click", function(){ runDemo("2b"); });
+document.getElementById("demoBtnG1").addEventListener("click", function(){ runDemo("g1"); });
 
 /* ---------- sample files ---------- */
 document.getElementById("sampleBtn").addEventListener("click", function(){
