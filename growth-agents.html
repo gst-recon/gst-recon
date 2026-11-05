@@ -1,0 +1,519 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex, nofollow">
+  <meta name="color-scheme" content="light">
+  <title>GST Recon · Growth Agents (Local Preview)</title>
+  <style>
+    :root {
+      --bg: #f3f6f3;
+      --surface: #fff;
+      --surface-soft: #f8faf8;
+      --ink: #15231b;
+      --muted: #64746a;
+      --line: #dce5dd;
+      --green: #08734d;
+      --green-dark: #075d40;
+      --green-soft: #e2f3e9;
+      --blue: #2d61bd;
+      --blue-soft: #eaf1ff;
+      --amber: #8a5a08;
+      --amber-soft: #fff3d7;
+      --red: #aa342d;
+      --red-soft: #fdecea;
+      --shadow: 0 10px 30px rgba(24, 51, 34, .06);
+      --radius: 16px;
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      color: var(--ink);
+      background: var(--bg);
+    }
+    * { box-sizing: border-box; }
+    body { margin: 0; min-width: 320px; background: var(--bg); color: var(--ink); line-height: 1.5; }
+    button, input, select, textarea { font: inherit; }
+    button { cursor: pointer; }
+    button:focus-visible, input:focus-visible, select:focus-visible, a:focus-visible { outline: 3px solid #83b8ff; outline-offset: 2px; }
+    .shell { max-width: 1240px; margin: 0 auto; padding: 0 24px 56px; }
+    .topbar { position: sticky; top: 0; z-index: 5; background: rgba(255,255,255,.94); backdrop-filter: blur(12px); border-bottom: 1px solid var(--line); }
+    .topbar-inner { max-width: 1240px; min-height: 68px; padding: 0 24px; margin: auto; display: flex; align-items: center; gap: 18px; }
+    .brand { display: inline-flex; align-items: center; gap: 10px; font-weight: 800; letter-spacing: -.03em; font-size: 17px; white-space: nowrap; }
+    .brand-mark { width: 34px; height: 34px; display: grid; place-items: center; color: white; background: var(--green); border-radius: 11px; font-size: 17px; }
+    .brand small { display: block; font-size: 10px; color: var(--muted); letter-spacing: .08em; text-transform: uppercase; line-height: 1.2; }
+    .topbar-spacer { flex: 1; }
+    .mode-pill, .synthetic-pill, .score-pill, .status-pill { display: inline-flex; align-items: center; gap: 7px; border-radius: 99px; font-size: 11px; line-height: 1.2; font-weight: 800; letter-spacing: .04em; text-transform: uppercase; }
+    .mode-pill { padding: 8px 11px; color: var(--amber); background: var(--amber-soft); border: 1px solid #f0d799; }
+    .mode-dot { width: 7px; height: 7px; border-radius: 50%; background: #ca8a04; }
+    .avatar { width: 34px; height: 34px; display: grid; place-items: center; border-radius: 50%; color: var(--green-dark); background: var(--green-soft); font-weight: 800; }
+    .hero { padding: 34px 0 22px; display: flex; align-items: flex-end; justify-content: space-between; gap: 20px; }
+    .eyebrow { color: var(--green); font-weight: 800; text-transform: uppercase; letter-spacing: .11em; font-size: 11px; margin: 0 0 8px; }
+    h1 { font-size: clamp(28px, 4vw, 40px); line-height: 1.1; letter-spacing: -.045em; margin: 0; }
+    .hero p { color: var(--muted); max-width: 680px; margin: 12px 0 0; }
+    .hero-note { flex: 0 0 280px; border: 1px solid #f0d799; background: var(--amber-soft); color: #68450b; padding: 13px 15px; border-radius: 13px; font-size: 12px; }
+    .hero-note strong { display: block; margin-bottom: 3px; font-size: 13px; }
+    .nav { display: flex; gap: 7px; padding: 7px; background: #e9efea; border: 1px solid var(--line); border-radius: 14px; width: fit-content; max-width: 100%; overflow-x: auto; }
+    .nav button { border: 0; border-radius: 10px; background: transparent; color: var(--muted); padding: 9px 14px; font-size: 13px; font-weight: 750; white-space: nowrap; }
+    .nav button.active { color: var(--green-dark); background: var(--surface); box-shadow: 0 2px 7px rgba(15, 40, 25, .08); }
+    .pane { display: none; }
+    .pane.active { display: block; }
+    .section-heading { display: flex; align-items: flex-end; justify-content: space-between; gap: 14px; margin: 24px 0 13px; }
+    .section-heading h2 { margin: 0; font-size: 19px; letter-spacing: -.025em; }
+    .section-heading p { margin: 4px 0 0; color: var(--muted); font-size: 13px; }
+    .metrics { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-top: 8px; }
+    .metric { padding: 17px; background: var(--surface); border: 1px solid var(--line); border-radius: 14px; box-shadow: var(--shadow); }
+    .metric-label { color: var(--muted); text-transform: uppercase; letter-spacing: .08em; font-size: 10px; font-weight: 800; }
+    .metric-value { font-size: 27px; line-height: 1.25; font-weight: 800; letter-spacing: -.04em; margin-top: 5px; }
+    .metric-note { color: var(--muted); font-size: 11px; margin-top: 3px; }
+    .agent-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; }
+    .agent-card { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); padding: 18px; box-shadow: var(--shadow); min-height: 204px; display: flex; flex-direction: column; }
+    .agent-top { display: flex; justify-content: space-between; gap: 12px; align-items: flex-start; }
+    .agent-icon { display: grid; place-items: center; width: 42px; height: 42px; background: var(--green-soft); color: var(--green-dark); border-radius: 13px; font-size: 20px; }
+    .status-pill { padding: 6px 8px; background: var(--green-soft); color: var(--green-dark); font-size: 9px; }
+    .status-pill.off { background: var(--amber-soft); color: var(--amber); }
+    .agent-card h3 { font-size: 16px; margin: 14px 0 5px; letter-spacing: -.02em; }
+    .agent-card p { color: var(--muted); font-size: 12px; margin: 0 0 14px; }
+    .agent-card .agent-foot { display: flex; justify-content: space-between; align-items: center; gap: 9px; margin-top: auto; color: var(--muted); font-size: 11px; }
+    .agent-card .agent-foot strong { color: var(--ink); }
+    .btn { min-height: 38px; border: 1px solid var(--line); border-radius: 10px; padding: 8px 12px; color: var(--ink); background: var(--surface); font-size: 12px; font-weight: 750; }
+    .btn:hover { border-color: #9cb5a1; background: #fbfdfb; }
+    .btn.primary { background: var(--green); border-color: var(--green); color: white; }
+    .btn.primary:hover { background: var(--green-dark); }
+    .btn.soft { background: var(--green-soft); border-color: #c8e4d3; color: var(--green-dark); }
+    .btn:disabled { cursor: not-allowed; opacity: .6; }
+    .overview-bottom { display: grid; grid-template-columns: 1.15fr .85fr; gap: 14px; margin-top: 14px; }
+    .panel { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); padding: 18px; box-shadow: var(--shadow); }
+    .panel h3 { margin: 0; font-size: 15px; letter-spacing: -.02em; }
+    .panel-sub { color: var(--muted); margin: 4px 0 14px; font-size: 12px; }
+    .flow { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+    .flow-step { background: var(--surface-soft); border: 1px solid var(--line); border-radius: 11px; padding: 12px; min-height: 98px; }
+    .flow-num { color: var(--green); font-size: 10px; font-weight: 850; letter-spacing: .1em; }
+    .flow-step strong { display: block; font-size: 12px; margin-top: 5px; }
+    .flow-step span { display: block; font-size: 10px; color: var(--muted); margin-top: 4px; }
+    .guardrail { border-left: 3px solid #d69a24; border-radius: 5px; background: #fffaf0; color: #68450b; padding: 12px 13px; font-size: 12px; }
+    .guardrail strong { display: block; margin-bottom: 4px; }
+    .toolbar { display: flex; flex-wrap: wrap; align-items: end; gap: 10px; margin-bottom: 13px; }
+    .field { display: flex; flex-direction: column; gap: 5px; }
+    .field label { font-size: 10px; color: var(--muted); font-weight: 800; letter-spacing: .08em; text-transform: uppercase; }
+    .field input, .field select { border: 1px solid var(--line); border-radius: 9px; padding: 9px 10px; min-height: 38px; background: white; color: var(--ink); font-size: 12px; }
+    .field.search { flex: 1 1 180px; }
+    .field.search input { width: 100%; }
+    .field select { min-width: 150px; }
+    .table-wrap { overflow-x: auto; border: 1px solid var(--line); border-radius: 12px; }
+    table { width: 100%; border-collapse: collapse; font-size: 12px; }
+    th { background: var(--surface-soft); color: var(--muted); font-size: 9px; font-weight: 850; text-align: left; text-transform: uppercase; letter-spacing: .08em; padding: 11px 12px; white-space: nowrap; }
+    td { border-top: 1px solid var(--line); padding: 11px 12px; vertical-align: middle; }
+    tbody tr { cursor: pointer; }
+    tbody tr:hover, tbody tr.selected { background: #f2f8f4; }
+    .business-cell strong { display: block; font-size: 12px; }
+    .business-cell span { display: block; color: var(--muted); font-size: 10px; margin-top: 2px; }
+    .synthetic-pill { background: var(--blue-soft); color: var(--blue); padding: 4px 7px; font-size: 8px; }
+    .score-pill { padding: 5px 8px; background: var(--green-soft); color: var(--green-dark); font-size: 10px; }
+    .score-pill.medium { background: var(--amber-soft); color: var(--amber); }
+    .score-pill.low { background: #eef1ee; color: #59665c; }
+    .detail-grid { display: grid; grid-template-columns: minmax(0, 1.2fr) minmax(280px, .8fr); gap: 14px; align-items: start; }
+    .profile-head { display: flex; align-items: flex-start; gap: 12px; }
+    .profile-initial { flex: none; width: 44px; height: 44px; display: grid; place-items: center; border-radius: 13px; background: var(--green-soft); color: var(--green-dark); font-size: 17px; font-weight: 850; }
+    .profile-head h3 { font-size: 17px; margin: 1px 0 3px; }
+    .profile-head p { font-size: 11px; color: var(--muted); margin: 0; }
+    .profile-score { margin-left: auto; text-align: right; }
+    .profile-score strong { font-size: 27px; letter-spacing: -.04em; }
+    .profile-score span { display: block; color: var(--muted); font-size: 9px; text-transform: uppercase; letter-spacing: .08em; }
+    .detail-facts { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; margin: 16px 0; }
+    .fact { border: 1px solid var(--line); border-radius: 10px; background: var(--surface-soft); padding: 10px; }
+    .fact span { display: block; color: var(--muted); text-transform: uppercase; font-size: 9px; letter-spacing: .06em; font-weight: 800; }
+    .fact strong { display: block; font-size: 11px; margin-top: 4px; overflow-wrap: anywhere; }
+    .score-list { display: grid; gap: 10px; margin-top: 13px; }
+    .score-row { display: grid; grid-template-columns: 1fr auto; gap: 8px; font-size: 11px; align-items: center; }
+    .score-row span { color: var(--muted); }
+    .score-track { grid-column: 1 / -1; height: 5px; border-radius: 9px; background: #edf1ed; overflow: hidden; margin-top: -5px; }
+    .score-track i { display: block; height: 100%; border-radius: inherit; background: var(--green); }
+    .muted { color: var(--muted); }
+    .small { font-size: 11px; }
+    .draft-controls { display: flex; flex-wrap: wrap; gap: 9px; align-items: center; margin: 14px 0; }
+    .draft-box { border: 1px solid var(--line); border-radius: 12px; padding: 14px; background: var(--surface-soft); }
+    .draft-meta { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 10px; }
+    .draft-meta div { padding: 9px; border-radius: 9px; background: #fff; border: 1px solid var(--line); min-width: 0; }
+    .draft-meta span { color: var(--muted); display: block; font-size: 9px; font-weight: 800; text-transform: uppercase; letter-spacing: .07em; }
+    .draft-meta strong { display: block; margin-top: 3px; font-size: 11px; overflow-wrap: anywhere; }
+    textarea.draft-preview { width: 100%; min-height: 190px; resize: vertical; border: 1px solid var(--line); border-radius: 9px; padding: 12px; background: #fff; color: var(--ink); font-size: 12px; line-height: 1.6; }
+    .queue-list { display: grid; gap: 8px; }
+    .queue-item { border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; display: flex; justify-content: space-between; gap: 12px; align-items: center; background: white; }
+    .queue-item strong { font-size: 11px; display: block; }
+    .queue-item span { display: block; color: var(--muted); font-size: 10px; margin-top: 3px; }
+    .queue-state { flex: none; border-radius: 99px; padding: 5px 8px; background: var(--blue-soft); color: var(--blue); font-size: 9px; font-weight: 800; text-transform: uppercase; }
+    .blank { padding: 22px; text-align: center; color: var(--muted); font-size: 12px; }
+    .toast { position: fixed; right: 18px; bottom: 18px; z-index: 10; max-width: 370px; background: #153b29; color: white; padding: 12px 15px; border-radius: 11px; box-shadow: var(--shadow); font-size: 12px; opacity: 0; transform: translateY(8px); pointer-events: none; transition: .2s ease; }
+    .toast.show { opacity: 1; transform: translateY(0); }
+    .footer-note { border-top: 1px solid var(--line); padding-top: 15px; margin-top: 28px; color: var(--muted); font-size: 10px; }
+    @media (max-width: 860px) {
+      .metrics { grid-template-columns: repeat(2, 1fr); }
+      .agent-grid { grid-template-columns: 1fr; }
+      .agent-card { min-height: 0; }
+      .overview-bottom, .detail-grid { grid-template-columns: 1fr; }
+      .hero { align-items: flex-start; flex-direction: column; }
+      .hero-note { flex-basis: auto; width: 100%; }
+    }
+    @media (max-width: 560px) {
+      .shell { padding-left: 14px; padding-right: 14px; }
+      .topbar-inner { padding: 0 14px; }
+      .topbar-inner .mode-pill { font-size: 9px; padding: 7px 8px; }
+      .avatar { display: none; }
+      .hero { padding-top: 25px; }
+      .metrics { gap: 8px; }
+      .metric { padding: 12px; }
+      .metric-value { font-size: 23px; }
+      .nav { width: 100%; }
+      .nav button { padding: 8px 11px; }
+      .flow { grid-template-columns: 1fr; }
+      .flow-step { min-height: auto; }
+      .draft-meta { grid-template-columns: 1fr; }
+      .panel { padding: 14px; }
+    }
+  </style>
+</head>
+<body>
+  <header class="topbar">
+    <div class="topbar-inner">
+      <div class="brand" aria-label="GST Recon Growth Agents local preview">
+        <span class="brand-mark" aria-hidden="true">↗</span>
+        <span>GST Recon<small>Growth workspace</small></span>
+      </div>
+      <div class="topbar-spacer"></div>
+      <span class="mode-pill"><i class="mode-dot" aria-hidden="true"></i>Local preview · sending off</span>
+      <div class="avatar" aria-hidden="true">GR</div>
+    </div>
+  </header>
+
+  <main class="shell">
+    <section class="hero" aria-labelledby="page-title">
+      <div>
+        <p class="eyebrow">Customer growth agents</p>
+        <h1 id="page-title">Find the right fit.<br>Start a useful conversation.</h1>
+        <p>Three focused agents help shortlist likely GST Recon users, rank profile fit, and prepare relevant outreach drafts. This standalone preview uses synthetic examples only.</p>
+      </div>
+      <aside class="hero-note"><strong>Safe local preview</strong>No mail provider, live prospect source, Firebase, paid service, or external API is connected. Drafts exist in this tab only; nothing is sent.</aside>
+    </section>
+
+    <nav class="nav" aria-label="Growth workspace sections">
+      <button type="button" class="active" data-pane-target="overview">Overview</button>
+      <button type="button" data-pane-target="prospects">Prospect scout</button>
+      <button type="button" data-pane-target="ranking">Profile ranking</button>
+      <button type="button" data-pane-target="drafts">Email drafts <span id="navDraftCount">(0)</span></button>
+    </nav>
+
+    <section class="pane active" id="pane-overview" aria-labelledby="overview-heading">
+      <div class="section-heading"><div><h2 id="overview-heading">Growth snapshot</h2><p>A local demo of the proposed customer acquisition workflow.</p></div><span class="synthetic-pill">Synthetic data</span></div>
+      <div class="metrics">
+        <article class="metric"><div class="metric-label">Sample prospects</div><div class="metric-value" id="metricProspects">0</div><div class="metric-note">All records are fictional examples</div></article>
+        <article class="metric"><div class="metric-label">High-fit profiles</div><div class="metric-value" id="metricHighFit">0</div><div class="metric-note">Sorted by explainable fit score</div></article>
+        <article class="metric"><div class="metric-label">Drafts prepared</div><div class="metric-value" id="metricDrafts">0</div><div class="metric-note">In-memory only; not sent</div></article>
+        <article class="metric"><div class="metric-label">Mail delivery</div><div class="metric-value" style="font-size:19px;color:var(--amber)">Off</div><div class="metric-note">No sender connected</div></article>
+      </div>
+
+      <div class="section-heading"><div><h2>Meet your agents</h2><p>Each agent has a clear job and a visible boundary.</p></div></div>
+      <div class="agent-grid">
+        <article class="agent-card">
+          <div class="agent-top"><div class="agent-icon" aria-hidden="true">⌕</div><span class="status-pill">Ready · local data</span></div>
+          <h3>Customer Scout</h3><p>Shortlists sample businesses that may benefit from GST reconciliation tools. The demo scans only its built-in fictional profiles.</p>
+          <div class="agent-foot"><span><strong id="scoutCount">0</strong> sample profiles</span><button class="btn" type="button" data-go="prospects">Open scout</button></div>
+        </article>
+        <article class="agent-card">
+          <div class="agent-top"><div class="agent-icon" aria-hidden="true">◎</div><span class="status-pill">Ready · explainable</span></div>
+          <h3>Profile Ranker</h3><p>Ranks business fit using segment relevance, stated reconciliation need, sample interest signal, and profile completeness—not personal traits.</p>
+          <div class="agent-foot"><span><strong id="rankedCount">0</strong> ranked profiles</span><button class="btn" type="button" data-go="ranking">View ranking</button></div>
+        </article>
+        <article class="agent-card">
+          <div class="agent-top"><div class="agent-icon" aria-hidden="true">✉</div><span class="status-pill off">Drafts on · send off</span></div>
+          <h3>Outreach Writer</h3><p>Creates personalized email drafts, one at a time or in a batch. It cannot contact anyone in this preview.</p>
+          <div class="agent-foot"><span><strong id="writerCount">0</strong> drafts created</span><button class="btn" type="button" data-go="drafts">Open drafts</button></div>
+        </article>
+      </div>
+
+      <div class="overview-bottom">
+        <section class="panel"><h3>How the workflow runs</h3><p class="panel-sub">Review each step before connecting any real-world source or action.</p>
+          <div class="flow">
+            <div class="flow-step"><span class="flow-num">STEP 01</span><strong>Scout prospects</strong><span>Filter the fictional sample pool by segment.</span></div>
+            <div class="flow-step"><span class="flow-num">STEP 02</span><strong>Rank profile fit</strong><span>See score components and why a profile ranks.</span></div>
+            <div class="flow-step"><span class="flow-num">STEP 03</span><strong>Prepare drafts</strong><span>Review or copy local drafts; sending stays off.</span></div>
+          </div>
+        </section>
+        <aside class="guardrail"><strong>Before real outreach</strong>Use only appropriate, consented contact data; verify recipients and claims; provide a clear opt-out; and check applicable email/privacy rules. This preview does not infer permission to contact anyone.</aside>
+      </div>
+    </section>
+
+    <section class="pane" id="pane-prospects" aria-labelledby="prospects-heading">
+      <div class="section-heading"><div><h2 id="prospects-heading">Customer Scout</h2><p>Explore the fictional prospect pool and select a profile to inspect its fit.</p></div><span class="synthetic-pill">Fictional sample businesses</span></div>
+      <section class="panel">
+        <div class="toolbar">
+          <div class="field"><label for="segmentFilter">Business segment</label><select id="segmentFilter"><option value="all">All segments</option><option value="Accountancy firm">Accountancy firm</option><option value="Independent accountant">Independent accountant</option><option value="Trader / wholesaler">Trader / wholesaler</option><option value="Retail business">Retail business</option><option value="GST consultant">GST consultant</option></select></div>
+          <div class="field search"><label for="prospectSearch">Search sample profiles</label><input id="prospectSearch" type="search" placeholder="Business name, region, or need"></div>
+          <button class="btn primary" type="button" id="runScout">Run local scout</button>
+        </div>
+        <div class="small muted" id="scoutMessage" role="status" aria-live="polite">Showing synthetic examples only.</div>
+        <div class="table-wrap" style="margin-top:10px"><table><thead><tr><th>Business profile</th><th>Region</th><th>Segment</th><th>Sample signal</th><th>Fit score</th></tr></thead><tbody id="prospectRows"></tbody></table></div>
+      </section>
+      <div class="detail-grid" style="margin-top:14px">
+        <section class="panel" id="prospectDetail" aria-live="polite"></section>
+        <aside class="panel"><h3>Scout guardrails</h3><p class="panel-sub">This is a product prototype, not a lead database.</p><div class="guardrail"><strong>Local-only source</strong>The scout reads only six fictional records embedded in this page. It performs no web search, scraping, import, or external lookup.</div><p class="small muted" style="margin:13px 0 0">Contact addresses use the reserved <code>.example</code> domain and cannot receive mail.</p></aside>
+      </div>
+    </section>
+
+    <section class="pane" id="pane-ranking" aria-labelledby="ranking-heading">
+      <div class="section-heading"><div><h2 id="ranking-heading">Profile Ranker</h2><p>Prioritize possible product fit using four transparent, business-level signals.</p></div><span class="synthetic-pill">No real profile scoring</span></div>
+      <section class="panel">
+        <div class="section-heading" style="margin-top:0"><div><h3>Ranked sample profiles</h3><p class="panel-sub" style="margin-bottom:0">Score = segment fit (28) + reconciliation need (25) + sample interest (22) + completeness (25).</p></div><button class="btn" type="button" data-go="prospects">Filter prospects</button></div>
+        <div class="table-wrap"><table><thead><tr><th>Rank</th><th>Business profile</th><th>Segment</th><th>Need</th><th>Profile score</th></tr></thead><tbody id="rankingRows"></tbody></table></div>
+      </section>
+      <div class="detail-grid" style="margin-top:14px">
+        <section class="panel" id="rankingDetail" aria-live="polite"></section>
+        <aside class="panel"><h3>What this score means</h3><p class="panel-sub">A triage aid, not a prediction or a decision about a person.</p><div class="score-list">
+          <div class="score-row"><span>Segment fit</span><strong>0–28</strong><div class="score-track"><i style="width:28%"></i></div></div>
+          <div class="score-row"><span>Reconciliation need</span><strong>0–25</strong><div class="score-track"><i style="width:25%"></i></div></div>
+          <div class="score-row"><span>Sample interest signal</span><strong>0–22</strong><div class="score-track"><i style="width:22%"></i></div></div>
+          <div class="score-row"><span>Profile completeness</span><strong>0–25</strong><div class="score-track"><i style="width:25%"></i></div></div>
+        </div><p class="small muted" style="margin:15px 0 0">The sample signals and scores are illustrative and should not be treated as customer evidence.</p></aside>
+      </div>
+    </section>
+
+    <section class="pane" id="pane-drafts" aria-labelledby="drafts-heading">
+      <div class="section-heading"><div><h2 id="drafts-heading">Outreach Writer</h2><p>Personalize drafts for a selected synthetic profile or prepare drafts for the ranked sample pool.</p></div><span class="status-pill off">Automatic sending disabled</span></div>
+      <div class="detail-grid">
+        <section class="panel">
+          <h3>Draft controls</h3><p class="panel-sub">Draft creation is automatic; delivery is not available in this local preview.</p>
+          <div class="field"><label for="draftProfile">Sample recipient profile</label><select id="draftProfile"></select></div>
+          <div class="draft-controls"><button class="btn primary" type="button" id="makeDraft">Create personalized draft</button><button class="btn soft" type="button" id="makeBatch">Prepare drafts for all ranked samples</button><button class="btn" type="button" disabled aria-disabled="true">Sending unavailable</button></div>
+          <div class="guardrail"><strong>Draft-only boundary</strong>No email service is configured. The app makes no network requests, sends no messages, and saves no profile or draft beyond this browser tab.</div>
+          <div class="draft-box" style="margin-top:14px">
+            <div class="draft-meta"><div><span>To (synthetic)</span><strong id="draftTo">Select a sample profile</strong></div><div><span>Subject</span><strong id="draftSubject">No draft yet</strong></div></div>
+            <label for="draftBody" class="field"><span style="font-size:10px;color:var(--muted);font-weight:800;letter-spacing:.08em;text-transform:uppercase">Preview</span></label>
+            <textarea class="draft-preview" id="draftBody" readonly placeholder="Your local draft preview will appear here. Nothing is sent."></textarea>
+            <div class="draft-controls" style="margin-bottom:0"><button class="btn" type="button" id="copyDraft" disabled>Copy draft</button><span class="small muted" id="draftStatus" role="status" aria-live="polite">Drafts are not saved after this tab closes.</span></div>
+          </div>
+        </section>
+        <aside class="panel"><div class="section-heading" style="margin:0 0 10px"><div><h3>Draft queue</h3><p class="panel-sub" style="margin-bottom:0">Local previews only · <span id="queueCount">0</span> drafts</p></div></div><div class="queue-list" id="draftQueue"><div class="blank">No drafts yet. Create one from a sample profile.</div></div></aside>
+      </div>
+    </section>
+
+    <footer class="footer-note">GST Recon · Growth Agents local prototype · Synthetic examples only · Not connected to the live site · No external requests or email delivery</footer>
+  </main>
+  <div id="toast" class="toast" role="status" aria-live="polite"></div>
+
+  <script>
+    "use strict";
+    // Fictional business profiles only. Reserved .example addresses cannot receive mail.
+    const profiles = [
+      { id: 1, name: "Ledger Nest Advisors", segment: "Accountancy firm", region: "Pune", team: 6, invoices: "500–1,000", need: 5, signal: "Asked for a sample reconciliation checklist (demo)", email: "team@ledgernest.example", initials: "LN" },
+      { id: 2, name: "Papertrail Wholesale", segment: "Trader / wholesaler", region: "Mumbai", team: 18, invoices: "500–1,000", need: 4, signal: "Viewed the 2B matching explainer (demo)", email: "hello@papertrail.example", initials: "PW" },
+      { id: 3, name: "Northstar Tax Desk", segment: "Independent accountant", region: "Bengaluru", team: 2, invoices: "100–300", need: 4, signal: "No sample interest signal", email: "contact@northstar.example", initials: "NT" },
+      { id: 4, name: "Mango Leaf Retail", segment: "Retail business", region: "Chennai", team: 4, invoices: "Under 100", need: 2, signal: "No sample interest signal", email: "accounts@mangoleaf.example", initials: "ML" },
+      { id: 5, name: "Clear Ledger Partners", segment: "Accountancy firm", region: "Jaipur", team: 11, invoices: "1,000+", need: 5, signal: "Requested a product walkthrough (demo)", email: "hello@clearledger.example", initials: "CL" },
+      { id: 6, name: "Tax Compass Studio", segment: "GST consultant", region: "Pune", team: 3, invoices: "100–300", need: 3, signal: "Viewed the vendor matching guide (demo)", email: "team@taxcompass.example", initials: "TC" }
+    ];
+    const segmentPoints = {
+      "Accountancy firm": 28,
+      "Independent accountant": 27,
+      "GST consultant": 26,
+      "Trader / wholesaler": 22,
+      "Retail business": 18
+    };
+    const state = { selectedId: 1, drafts: [], currentDraftId: null, filterSegment: "all", query: "" };
+    const byId = (id) => document.getElementById(id);
+    const scoreOf = (p) => {
+      const segment = segmentPoints[p.segment] || 12;
+      const need = p.need * 5;
+      const interest = p.signal.startsWith("No ") ? 8 : 22;
+      const complete = [p.name, p.segment, p.region, p.invoices, p.signal].filter(Boolean).length * 5;
+      return { segment, need, interest, complete, total: Math.min(100, segment + need + interest + complete) };
+    };
+    const ranked = () => profiles.slice().sort((a, b) => scoreOf(b).total - scoreOf(a).total || a.name.localeCompare(b.name));
+    const selected = () => profiles.find((p) => p.id === state.selectedId) || profiles[0];
+    const scoreClass = (score) => score >= 80 ? "" : score >= 60 ? " medium" : " low";
+    function showToast(text) {
+      const el = byId("toast");
+      el.textContent = text;
+      el.classList.add("show");
+      window.clearTimeout(showToast.timer);
+      showToast.timer = window.setTimeout(() => el.classList.remove("show"), 2800);
+    }
+    function cellText(tag, text, className) {
+      const el = document.createElement(tag);
+      if (className) el.className = className;
+      el.textContent = text;
+      return el;
+    }
+    function appendBusinessCell(cell, profile) {
+      const wrap = document.createElement("div");
+      wrap.className = "business-cell";
+      wrap.append(cellText("strong", profile.name), cellText("span", profile.team + " person team · " + profile.invoices + " monthly invoices"));
+      cell.append(wrap);
+    }
+    function filteredProfiles() {
+      const q = state.query.trim().toLowerCase();
+      return ranked().filter((p) => (state.filterSegment === "all" || p.segment === state.filterSegment) && (!q || [p.name, p.region, p.segment, p.signal].join(" ").toLowerCase().includes(q)));
+    }
+    function renderProspects() {
+      const body = byId("prospectRows");
+      body.replaceChildren();
+      const rows = filteredProfiles();
+      if (!rows.length) {
+        const tr = document.createElement("tr");
+        const td = cellText("td", "No sample profile matches these filters.", "muted");
+        td.colSpan = 5; tr.append(td); body.append(tr);
+      }
+      rows.forEach((p) => {
+        const tr = document.createElement("tr");
+        tr.dataset.profileId = String(p.id);
+        if (p.id === state.selectedId) tr.className = "selected";
+        const name = document.createElement("td"); appendBusinessCell(name, p);
+        const region = cellText("td", p.region);
+        const segment = cellText("td", p.segment);
+        const signal = cellText("td", p.signal, "muted");
+        const score = document.createElement("td"); score.append(cellText("span", String(scoreOf(p).total) + " / 100", "score-pill" + scoreClass(scoreOf(p).total)));
+        tr.append(name, region, segment, signal, score);
+        body.append(tr);
+      });
+      byId("scoutMessage").textContent = "Showing " + rows.length + " of " + profiles.length + " fictional sample profiles. No outside source was searched.";
+      renderSelectedDetail("prospectDetail");
+    }
+    function renderScoreBreakdown(profile) {
+      const s = scoreOf(profile);
+      const list = document.createElement("div");
+      list.className = "score-list";
+      [["Segment relevance", s.segment, 28], ["Reconciliation need", s.need, 25], ["Sample interest signal", s.interest, 22], ["Profile completeness", s.complete, 25]].forEach(([label, value, max]) => {
+        const row = document.createElement("div"); row.className = "score-row";
+        row.append(cellText("span", label), cellText("strong", value + " / " + max));
+        const track = document.createElement("div"); track.className = "score-track";
+        const bar = document.createElement("i"); bar.style.width = Math.min(100, (value / max) * 100) + "%"; track.append(bar);
+        row.append(track); list.append(row);
+      });
+      return list;
+    }
+    function renderSelectedDetail(targetId) {
+      const p = selected();
+      const target = byId(targetId);
+      target.replaceChildren();
+      const head = document.createElement("div"); head.className = "profile-head";
+      head.append(cellText("div", p.initials, "profile-initial"));
+      const info = document.createElement("div");
+      info.append(cellText("h3", p.name), cellText("p", p.segment + " · " + p.region + " · fictional profile"));
+      const score = document.createElement("div"); score.className = "profile-score";
+      score.append(cellText("strong", String(scoreOf(p).total)), cellText("span", "Fit / 100"));
+      head.append(info, score); target.append(head);
+      const facts = document.createElement("div"); facts.className = "detail-facts";
+      [["Business segment", p.segment], ["Region", p.region], ["Sample team size", String(p.team)], ["Monthly invoice band", p.invoices], ["Sample need", p.need + " / 5"], ["Contact placeholder", p.email]].forEach(([key, value]) => {
+        const fact = document.createElement("div"); fact.className = "fact"; fact.append(cellText("span", key), cellText("strong", value)); facts.append(fact);
+      });
+      target.append(facts, cellText("h3", "Why this profile ranked"), renderScoreBreakdown(p));
+      if (targetId === "prospectDetail") {
+        const button = cellText("button", "Create a draft for this profile", "btn primary"); button.type = "button"; button.style.marginTop = "15px";
+        button.addEventListener("click", () => { byId("draftProfile").value = String(p.id); createDraft(p); switchPane("drafts"); });
+        target.append(button);
+      }
+    }
+    function renderRanking() {
+      const body = byId("rankingRows"); body.replaceChildren();
+      ranked().forEach((p, index) => {
+        const tr = document.createElement("tr"); tr.dataset.profileId = String(p.id);
+        if (p.id === state.selectedId) tr.className = "selected";
+        const rank = cellText("td", "#" + (index + 1));
+        const business = document.createElement("td"); appendBusinessCell(business, p);
+        const segment = cellText("td", p.segment);
+        const need = cellText("td", p.need + " / 5");
+        const score = document.createElement("td"); score.append(cellText("span", String(scoreOf(p).total) + " / 100", "score-pill" + scoreClass(scoreOf(p).total)));
+        tr.append(rank, business, segment, need, score); body.append(tr);
+      });
+      renderSelectedDetail("rankingDetail");
+    }
+    function draftFor(p) {
+      const subject = p.segment.includes("Account") || p.segment.includes("accountant") || p.segment.includes("consultant")
+        ? "A GST reconciliation helper for your workflow"
+        : "A simpler way to review GST reconciliation";
+      const body = "Hello " + p.name + " team,\n\nI’m working on GST Recon, a free GST reconciliation tool for reviewing purchase-register data against GSTR-2B. It may be useful for teams that want a clearer first pass on reconciliation.\n\nIf this is relevant, you can take a look at GST Recon and share any feedback. No pressure if it is not a fit.\n\nRegards,\nPrathamesh\n\n[Local preview: add an approved product link before any real use.]\n\n---\nThis message is a draft for a fictional sample profile. It has not been sent.";
+      return { id: Date.now().toString(36) + Math.random().toString(36).slice(2, 7), profileId: p.id, name: p.name, to: p.email, subject, body, createdAt: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) };
+    }
+    function renderDraftQueue() {
+      const list = byId("draftQueue"); list.replaceChildren();
+      byId("queueCount").textContent = String(state.drafts.length);
+      byId("navDraftCount").textContent = "(" + state.drafts.length + ")";
+      byId("metricDrafts").textContent = String(state.drafts.length);
+      byId("writerCount").textContent = String(state.drafts.length);
+      if (!state.drafts.length) { list.append(cellText("div", "No drafts yet. Create one from a sample profile.", "blank")); return; }
+      state.drafts.slice().reverse().forEach((draft) => {
+        const item = document.createElement("div"); item.className = "queue-item";
+        const copy = document.createElement("div"); copy.append(cellText("strong", draft.name), cellText("span", draft.subject + " · " + draft.createdAt));
+        item.append(copy, cellText("span", "Draft only", "queue-state"));
+        item.addEventListener("click", () => showDraft(draft)); item.tabIndex = 0; item.setAttribute("role", "button"); item.setAttribute("aria-label", "Preview draft for " + draft.name);
+        item.addEventListener("keydown", (event) => { if (event.key === "Enter" || event.key === " ") { event.preventDefault(); showDraft(draft); } });
+        list.append(item);
+      });
+    }
+    function showDraft(draft) {
+      state.currentDraftId = draft.id;
+      byId("draftTo").textContent = draft.to;
+      byId("draftSubject").textContent = draft.subject;
+      byId("draftBody").value = draft.body;
+      byId("copyDraft").disabled = false;
+      byId("draftStatus").textContent = "Selected local draft · not sent or saved remotely.";
+    }
+    function createDraft(p) {
+      const draft = draftFor(p);
+      state.drafts.push(draft);
+      showDraft(draft);
+      renderDraftQueue();
+      showToast("Draft prepared for fictional profile “" + p.name + "”. Nothing was sent.");
+    }
+    function switchPane(name) {
+      document.querySelectorAll(".nav [data-pane-target]").forEach((button) => button.classList.toggle("active", button.dataset.paneTarget === name));
+      document.querySelectorAll(".pane").forEach((pane) => pane.classList.toggle("active", pane.id === "pane-" + name));
+      if (name === "prospects") renderProspects();
+      if (name === "ranking") renderRanking();
+      if (name === "drafts") renderDraftQueue();
+    }
+    function updateSelection(id) {
+      state.selectedId = Number(id);
+      byId("draftProfile").value = String(state.selectedId);
+      renderProspects(); renderRanking();
+    }
+    function initDraftSelect() {
+      const select = byId("draftProfile"); select.replaceChildren();
+      profiles.forEach((p) => { const option = document.createElement("option"); option.value = String(p.id); option.textContent = p.name + " — " + p.segment + " (sample)"; select.append(option); });
+      select.value = String(state.selectedId);
+    }
+    byId("metricProspects").textContent = String(profiles.length);
+    byId("scoutCount").textContent = String(profiles.length);
+    byId("rankedCount").textContent = String(profiles.length);
+    byId("metricHighFit").textContent = String(ranked().filter((p) => scoreOf(p).total >= 80).length);
+    initDraftSelect(); renderProspects(); renderRanking(); renderDraftQueue();
+
+    document.querySelectorAll(".nav [data-pane-target]").forEach((button) => button.addEventListener("click", () => switchPane(button.dataset.paneTarget)));
+    document.querySelectorAll("[data-go]").forEach((button) => button.addEventListener("click", () => switchPane(button.dataset.go)));
+    document.querySelectorAll("[data-profile-id]").forEach((row) => row.addEventListener("click", () => updateSelection(row.dataset.profileId)));
+    document.addEventListener("click", (event) => {
+      const row = event.target.closest("tr[data-profile-id]");
+      if (row) updateSelection(row.dataset.profileId);
+    });
+    byId("segmentFilter").addEventListener("change", (event) => { state.filterSegment = event.target.value; renderProspects(); });
+    byId("prospectSearch").addEventListener("input", (event) => { state.query = event.target.value; renderProspects(); });
+    byId("runScout").addEventListener("click", () => { renderProspects(); showToast("Local scout complete: fictional profiles only; no outside search performed."); });
+    byId("draftProfile").addEventListener("change", (event) => { state.selectedId = Number(event.target.value); renderProspects(); renderRanking(); });
+    byId("makeDraft").addEventListener("click", () => createDraft(profiles.find((p) => p.id === Number(byId("draftProfile").value))));
+    byId("makeBatch").addEventListener("click", () => {
+      const batch = ranked().map(draftFor);
+      state.drafts.push(...batch);
+      showDraft(batch[batch.length - 1]); renderDraftQueue();
+      showToast(batch.length + " fictional draft previews prepared. Nothing was sent.");
+    });
+    byId("copyDraft").addEventListener("click", async () => {
+      const draft = state.drafts.find((item) => item.id === state.currentDraftId);
+      if (!draft) return;
+      const content = "To: " + draft.to + "\nSubject: " + draft.subject + "\n\n" + draft.body;
+      try {
+        await navigator.clipboard.writeText(content);
+        byId("draftStatus").textContent = "Copied to clipboard. This remains a local draft; no email was sent.";
+      } catch (error) {
+        byId("draftStatus").textContent = "Clipboard is unavailable here. Select and copy the preview manually.";
+      }
+    });
+  </script>
+</body>
+</html>
