@@ -323,7 +323,7 @@ function renderLeads(q){
     return (l.name + " " + l.type + " " + l.city + " " + l.contact + " " + l.why).toLowerCase().indexOf(q) !== -1;
   });
   document.getElementById("leadCount").textContent = "— " + shown.length + " / " + allLeads.length;
-  if(!shown.length){ body.innerHTML = "<tr><td colspan='5' class='muted'>Koi lead nahi mila.</td></tr>"; return; }
+  if(!allLeads.length){ body.innerHTML = "<tr><td colspan='5' class='muted'>Privacy fix: is public snapshot me lead records include nahi kiye gaye.</td></tr>"; return; } if(!shown.length){ body.innerHTML = "<tr><td colspan='5' class='muted'>Koi matching lead nahi mila.</td></tr>"; return; }
   body.innerHTML = shown.map(function(l){
     return "<tr><td><strong>" + escH(l.name) + "</strong></td><td>" + escH(l.type) + "</td><td>" + escH(l.city) + "</td><td>" + escH(l.contact) + "</td><td class='muted'>" + escH(l.why) + "</td></tr>";
   }).join("");
