@@ -1,0 +1,126 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="color-scheme" content="light dark" />
+  <meta name="description" content="Reformat a spreadsheet into GST Recon's invoice columns, locally in your browser." />
+  <title>Format a GST sheet — GST Recon</title>
+  <style>
+    :root{
+      --bg:#f4f6f4; --surface:#fff; --surface2:#eef1ee; --ink:#16211b; --soft:#43544a;
+      --line:#d5ddd6; --accent:#0d6a4a; --accentInk:#fff; --accentSoft:#e2f0e9;
+      --warn:#8a5200; --warnBg:#fff2d8; --bad:#a3231b; --badBg:#fbe9e7; --good:#0d6a4a; --goodBg:#e2f0e9;
+      --mono:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace; --sans:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+    }
+    @media(prefers-color-scheme:dark){:root{--bg:#101613;--surface:#182019;--surface2:#1f2a22;--ink:#e7efe9;--soft:#a7b8ad;--line:#2e3d33;--accent:#3cb98a;--accentInk:#0c1712;--accentSoft:#173528;--warn:#e8b34b;--warnBg:#3a2c10;--bad:#f28b82;--badBg:#3d1d1a;--good:#3cb98a;--goodBg:#173528}}
+    *{box-sizing:border-box} body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.55 var(--sans)} a{color:var(--accent)} button,input,select{font:inherit;color:inherit} button{cursor:pointer}
+    .top{background:var(--surface);border-bottom:1px solid var(--line)} .top-in,.wrap{max-width:1120px;margin:0 auto;padding:0 1.1rem}
+    .top-in{min-height:58px;display:flex;align-items:center;justify-content:space-between;gap:1rem;flex-wrap:wrap}
+    .brand{font-size:1.13rem;font-weight:800;color:var(--ink);text-decoration:none}.brand span{color:var(--accent)}
+    .btn{display:inline-flex;align-items:center;justify-content:center;gap:.45rem;border:1px solid var(--line);border-radius:9px;background:var(--surface);color:var(--ink);padding:.55rem .9rem;font-weight:700;text-decoration:none}
+    .btn:hover{border-color:var(--accent)} .btn.primary{background:var(--accent);border-color:var(--accent);color:var(--accentInk)} .btn:disabled{opacity:.5;cursor:not-allowed}
+    .wrap{padding-top:1.8rem;padding-bottom:4rem}.hero{max-width:820px;margin-bottom:1.2rem}.hero h1{font-size:clamp(1.85rem,4vw,2.65rem);line-height:1.15;margin:.2rem 0 .55rem;letter-spacing:-.02em}.hero p{margin:0;color:var(--soft);font-size:1.04rem}
+    .card{background:var(--surface);border:1px solid var(--line);border-radius:13px;padding:1.15rem;margin-top:1rem}.privacy{background:var(--accentSoft);border-color:var(--accent);display:flex;gap:.75rem;align-items:flex-start}.privacy strong{color:var(--accent)}
+    .privacy p{margin:0}.layout{display:grid;grid-template-columns:1fr 1fr;gap:1rem}.field label,.map-label{display:block;font-weight:700;font-size:.9rem;margin:0 0 .35rem;color:var(--soft)}
+    input[type=file],select{display:block;width:100%;min-width:0;border:1px solid var(--line);border-radius:8px;background:var(--surface);padding:.58rem .68rem}
+    input[type=file]{padding:.68rem;background:var(--surface2)} select:focus,input:focus{outline:2px solid var(--accent);outline-offset:1px}
+    .hint{color:var(--soft);font-size:.86rem;margin:.4rem 0 0}.fname{font: .84rem var(--mono);color:var(--soft);margin-top:.45rem;overflow-wrap:anywhere}
+    .row{display:flex;gap:.65rem;align-items:center;flex-wrap:wrap;margin-top:.9rem}.row .spacer{flex:1}.section-title{font-size:1.16rem;margin:0 0 .35rem}.section-sub{color:var(--soft);margin:0 0 .9rem;font-size:.92rem}
+    .schema{font-size:.88rem;color:var(--soft);background:var(--surface2);border-radius:9px;padding:.8rem .9rem;margin-top:.8rem}.schema code{font: .82rem var(--mono);overflow-wrap:anywhere}
+    .message{display:none;border-radius:9px;padding:.72rem .9rem;margin-top:.8rem;font-size:.93rem}.message.show{display:block}.message.info{background:var(--surface2);border:1px solid var(--line)}.message.ok{background:var(--goodBg);border:1px solid var(--good);color:var(--good)}.message.warn{background:var(--warnBg);border:1px solid var(--warn);color:var(--warn)}.message.err{background:var(--badBg);border:1px solid var(--bad);color:var(--bad)}
+    .mapping{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:.7rem}.map-field{min-width:0}.map-select{padding:.52rem .6rem;font-size:.9rem}
+    .stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:.65rem;margin:.8rem 0}.stat{border:1px solid var(--line);border-radius:9px;padding:.7rem .85rem;background:var(--surface2)}.stat .label{font-size:.76rem;text-transform:uppercase;letter-spacing:.04em;color:var(--soft);font-weight:800}.stat .value{font:800 1.35rem var(--mono);margin-top:.1rem}
+    .tablewrap{overflow:auto;border:1px solid var(--line);border-radius:9px;margin-top:.8rem}table{border-collapse:collapse;width:100%;min-width:1120px;font-size:.82rem}th,td{text-align:left;padding:.48rem .58rem;border-bottom:1px solid var(--line);vertical-align:top;max-width:240px;overflow-wrap:anywhere}th{position:sticky;top:0;background:var(--surface2);font-size:.73rem;text-transform:uppercase;letter-spacing:.03em;color:var(--soft)}td.number{font-family:var(--mono);text-align:right;white-space:nowrap}td.mono{font-family:var(--mono)}td.check{min-width:190px;white-space:normal}td.good{color:var(--good)}td.bad{color:var(--bad);font-weight:700}tr.needs-review td{background:var(--warnBg)}.more-row td{color:var(--soft);font-style:italic}
+    .csv-note{margin:.45rem 0 0;color:var(--warn);font-size:.86rem}.fineprint{font-size:.84rem;color:var(--soft);margin:.8rem 0 0}.tag{display:inline-block;border:1px solid var(--accent);border-radius:99px;padding:.1rem .5rem;color:var(--accent);font-size:.74rem;font-weight:800;margin-left:.35rem}
+    footer{margin-top:2.3rem;padding-top:1rem;border-top:1px solid var(--line);font-size:.85rem;color:var(--soft)}
+    @media(max-width:700px){.layout{grid-template-columns:1fr}.top-in{padding-top:.55rem;padding-bottom:.55rem}.wrap{padding-top:1.2rem}.card{padding:.9rem}.row .spacer{display:none}.row .btn{flex:1 1 180px}}
+  </style>
+  <script defer src="https://cdn.sheetjs.com/xlsx-0.20.2/package/dist/xlsx.full.min.js"></script>
+  <script defer src="sheet-formatter-core.js"></script>
+  <script defer src="sheet-formatter-app.js"></script>
+</head>
+<body>
+  <header class="top">
+    <div class="top-in">
+      <a class="brand" href="index.html">GST<span>Recon</span></a>
+      <a class="btn" href="index.html#tools">← Back to GST Recon</a>
+    </div>
+  </header>
+  <main class="wrap">
+    <div class="hero">
+      <h1>Format your invoice sheet for GST Recon</h1>
+      <p>Upload your own spreadsheet, match its columns once, review GSTIN and invoice checks, then download a clean site-ready file. Excel numbers and dates are normalized to the format the reconciliation tools accept.</p>
+      <p class="hint">This prepares data for GST Recon's reconciliation importer; it does not create tax invoices or file GST returns.</p>
+    </div>
+
+    <section class="card privacy" aria-label="Privacy information">
+      <div aria-hidden="true">🔒</div>
+      <p><strong>Private by design.</strong> This formatter reads the selected file in this browser tab only. It does not upload the spreadsheet, save it to an account, or send its contents to an API. Your source file is never changed; formatting creates a separately named download. Closing the tab or choosing “Clear file” removes the working preview.</p>
+    </section>
+
+    <section class="card" aria-labelledby="uploadTitle">
+      <h2 class="section-title" id="uploadTitle">1 · Choose a spreadsheet</h2>
+      <p class="section-sub">Accepted formats: Excel (.xlsx / .xls), CSV, TSV, text or JSON. Maximum 10 MB. If an Excel workbook has several sheets, choose the one with invoice rows.</p>
+      <div class="layout">
+        <div class="field">
+          <label for="sourceFile">Your file</label>
+          <input id="sourceFile" type="file" accept=".xlsx,.xls,.csv,.tsv,.txt,.json" />
+          <div class="fname" id="fileName" aria-live="polite"></div>
+        </div>
+        <div class="field" id="sheetWrap" hidden>
+          <label for="sheetSelect">Worksheet</label>
+          <select id="sheetSelect"></select>
+          <p class="hint">Only the selected sheet is formatted.</p>
+        </div>
+      </div>
+      <div class="row">
+        <button class="btn" id="sampleBtn" type="button">Load fictional sample</button>
+        <button class="btn" id="clearBtn" type="button">Clear file</button>
+      </div>
+      <div class="schema"><strong>Site-ready columns:</strong> <code>Supplier GSTIN</code>, <code>Invoice No</code>, <code>Invoice Date</code>, <code>Taxable Value</code>, <code>CGST</code>, <code>SGST</code>, <code>IGST</code>, <code>Narration</code>. GSTIN and Invoice No are required by the site's current importer; missing tax amounts export as 0, and missing date/narration stay blank. For sales files, put the buyer/customer GSTIN in the GSTIN column; the target site treats this as the counterparty GSTIN.</div>
+      <div class="message" id="message" role="status" aria-live="polite"></div>
+    </section>
+
+    <section class="card" id="headerWrap" hidden aria-labelledby="headerTitle">
+      <h2 class="section-title" id="headerTitle">2 · Confirm the header row</h2>
+      <p class="section-sub" id="headerNote"></p>
+      <div class="field">
+        <label for="headerSelect">Row containing your column names</label>
+        <select id="headerSelect"></select>
+      </div>
+    </section>
+
+    <section class="card" id="mappingWrap" hidden aria-labelledby="mappingTitle">
+      <h2 class="section-title" id="mappingTitle">3 · Match your columns</h2>
+      <p class="section-sub">We auto-match common GST, Tally and portal headings. Check every match; you can change any dropdown. Required columns are marked *.</p>
+      <div class="mapping" id="mappingGrid"></div>
+    </section>
+
+    <section class="card" id="results" hidden aria-labelledby="previewTitle">
+      <h2 class="section-title" id="previewTitle">4 · Review and download</h2>
+      <p class="section-sub">GSTIN checks use the same format/check-digit rules as the site; they do not confirm registration status. Invalid or incomplete rows remain in the export with a review warning, so check them before reconciling.</p>
+      <div class="stats">
+        <div class="stat"><div class="label">Invoice rows</div><div class="value" id="rowCount">0</div></div>
+        <div class="stat"><div class="label">GSTIN + invoice look valid</div><div class="value" id="readyCount">0</div></div>
+        <div class="stat"><div class="label">Rows to review</div><div class="value" id="reviewCount">0</div></div>
+      </div>
+      <p class="fineprint" id="skipNote"></p>
+      <div class="tablewrap">
+        <table>
+          <thead id="previewHead"></thead>
+          <tbody id="previewBody"></tbody>
+        </table>
+      </div>
+      <div class="row">
+        <button class="btn primary" id="downloadXlsx" type="button" disabled>Download site-ready Excel (.xlsx)</button>
+        <button class="btn" id="downloadCsv" type="button" disabled>Download site-ready CSV</button>
+      </div>
+      <p class="csv-note" id="csvNote" hidden></p>
+      <p class="fineprint">Invoice numbers are kept as text. In your source workbook, set invoice-number cells to Text if they have leading zeroes.</p>
+    </section>
+
+    <footer>GST Recon sheet formatter · Your file is processed in this browser only.</footer>
+  </main>
+</body>
+</html>

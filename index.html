@@ -74,6 +74,8 @@
   .drop p{ margin:0 0 .8rem; color:var(--ink-soft); font-size:.9rem; }
   .drop input[type=file]{ width:100%; }
   .fname{ font-family:var(--mono); font-size:.85rem; margin-top:.6rem; word-break:break-all; }
+  .sheet-format-row{ display:flex; gap:.65rem; align-items:center; flex-wrap:wrap; margin:.7rem 0; color:var(--ink-soft); font-size:.88rem; }
+  .sheet-format-row .btn{ flex:none; }
   .cols-note{ font-size:.88rem; color:var(--ink-soft); margin-top:1rem; }
   .cols-note code{ font-family:var(--mono); background:var(--surface-2); padding:.05rem .35rem; border-radius:4px; font-size:.82rem; }
   .runrow{ display:flex; gap:.8rem; align-items:center; flex-wrap:wrap; margin-top:1.2rem; }
@@ -564,6 +566,7 @@
           <div class="fname" id="name2b"></div>
         </div>
       </div>
+      <div class="sheet-format-row"><a class="btn" href="sheet-formatter.html" target="_blank" rel="noopener noreferrer">Format sheet</a><span>Invoice sheets with unusual columns or dates? Open the local formatter in a separate tab and choose the source file there; the original stays unchanged.</span></div>
       <p class="cols-note">Accepted column names — GSTIN: <code>Supplier GSTIN</code> <code>GSTIN</code> <code>Seller GSTIN</code> · Invoice: <code>Invoice No</code> <code>Inv No</code> <code>Invoice Number</code> · Date: <code>Invoice Date</code> <code>Inv Date</code> · Taxable: <code>Taxable Value</code> <code>Taxable Amt</code> · Tax: <code>CGST</code> <code>SGST</code> <code>IGST</code>. Dates can be DD/MM/YYYY, YYYY-MM-DD, DD-MM-YYYY or 05-Oct-2026. <strong>JSON format:</strong> array of objects with these same column names as keys — <code>[{"Supplier GSTIN":"27AAECB1234F1Z5","Invoice No":"INV-001","Invoice Date":"05/10/2026","Taxable Value":10000,"CGST":900,"SGST":900,"IGST":0}]</code> — keys flexibly matched hain (snake_case, camelCase aur portal keys <code>ctin</code> / <code>inum</code> / <code>idt</code> / <code>txval</code> bhi chalte hain). Narration (optional): <code>Narration</code> <code>Particulars</code> — file me ho to results aur Excel report ki har row me dikhega, aur har unmatched row ke saath <strong>Issue</strong> column me saaf likha milega ki bill kis side me missing hai (missing rows laal highlight hoti hain). Na ho to bhi sab kuch pehle jaisa chalega.</p>
       <div class="runrow">
         <button class="btn primary big" id="runBtn">Run reconciliation</button>
@@ -605,6 +608,7 @@
           <div class="fname" id="nameG1"></div>
         </div>
       </div>
+      <div class="sheet-format-row"><a class="btn" href="sheet-formatter.html" target="_blank" rel="noopener noreferrer">Format sheet</a><span>Invoice sheets with unusual columns or dates? Open the local formatter in a separate tab and choose the source file there; the original stays unchanged.</span></div>
       <div class="runrow">
         <button class="btn primary big" id="runBtn1">Run reconciliation</button>
         <button class="linkbtn" id="sampleBtn1" type="button">Download sample files to try it</button>
@@ -645,6 +649,7 @@
           <div class="fname" id="nameVendorStmt"></div>
         </div>
       </div>
+      <div class="sheet-format-row"><a class="btn" href="sheet-formatter.html" target="_blank" rel="noopener noreferrer">Format sheet</a><span>Invoice sheets with unusual columns or dates? Open the local formatter in a separate tab and choose the source file there; the original stays unchanged.</span></div>
       <div class="runrow">
         <button class="btn primary big" id="runBtnVendor">Run reconciliation</button>
         <button class="linkbtn" id="sampleBtnVendor" type="button">Download sample files to try it</button>
@@ -685,6 +690,7 @@
           <div class="fname" id="nameCustStmt"></div>
         </div>
       </div>
+      <div class="sheet-format-row"><a class="btn" href="sheet-formatter.html" target="_blank" rel="noopener noreferrer">Format sheet</a><span>Invoice sheets with unusual columns or dates? Open the local formatter in a separate tab and choose the source file there; the original stays unchanged.</span></div>
       <div class="runrow">
         <button class="btn primary big" id="runBtnCust">Run reconciliation</button>
         <button class="linkbtn" id="sampleBtnCust" type="button">Download sample files to try it</button>
@@ -729,6 +735,7 @@
           <input type="text" id="labelLedger2" maxlength="40" placeholder="Jaise: Bhavya Ledger" /></div>
         </div>
       </div>
+      <div class="sheet-format-row"><a class="btn" href="sheet-formatter.html" target="_blank" rel="noopener noreferrer">Format sheet</a><span>Invoice-style files only. Keep voucher-style ledgers in the columns below. The ledger tool reads invoice rows as Sales/debit, so this does not convert vendor bills into payable entries.</span></div>
       <p class="cols-note">Accepted column names (ledger format) — Date: <code>Date</code> <code>Transaction Date</code> · Particulars: <code>Particulars</code> <code>Narration</code> <code>Description</code> · Vch Type: <code>Vch Type</code> <code>Voucher Type</code> · Vch No.: <code>Vch No.</code> <code>Voucher No</code> <code>Bill No</code> <code>Invoice No</code> · Debit: <code>Debit</code> <code>Dr</code> · Credit: <code>Credit</code> <code>Cr</code>. Invoice format me ye columns chalte hain: <code>Supplier GSTIN</code> <code>Invoice No</code> <code>Invoice Date</code> <code>Taxable Value</code> <code>CGST</code> <code>SGST</code> <code>IGST</code> — bill ki rakam Taxable + tax mila kar li jayegi. Opening / Closing Balance wali rows matching me nahi gini jati — wo sirf dikhayi jati hain. Bill pehchanna: Vch Type <code>Sales</code> / <code>Purchase</code> wali entries bills hain; <code>Receipt</code> / <code>Payment</code> wali entries payments hain — payments bills se pehle exact amount se, phir FIFO order me adjust hoti hain.</p>
       <div class="runrow">
         <button class="btn primary big" id="runBtnLedger">Compare ledgers</button>
